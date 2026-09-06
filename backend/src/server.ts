@@ -2,13 +2,17 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import swaggerSpec from '../docs/swagger.js';
-import healthRoutes from '../routes/health.js';
+import swaggerSpec from './docs/swagger.js';
+import healthRoutes from './routes/health.js';
+import { connectDB } from './config/db.js';
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Connect to Database
+connectDB();
 
 app.use(cors());
 app.use(express.json());
