@@ -24,4 +24,6 @@ export const env = {
   REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN ?? "7d",
 
   BCRYPT_SALT_ROUNDS: process.env.BCRYPT_SALT_ROUNDS ?? "12",
+
+  CORS_ORIGIN: process.env.CORS_ORIGIN ?? "http://localhost:5173",
 } as const;

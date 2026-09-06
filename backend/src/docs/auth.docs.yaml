@@ -43,7 +43,15 @@ paths:
                   example: 507f1f77bcf86cd799439011
       responses:
         "201":
-          description: Registration successful
+          description: >
+            Registration successful. The refresh token is set in an HttpOnly cookie;
+            only the access token is returned in the response body.
+          headers:
+            Set-Cookie:
+              description: HttpOnly refresh token cookie
+              schema:
+                type: string
+                example: refreshToken=eyJhbG...; HttpOnly; Path=/api/v1/auth; SameSite=Strict
           content:
             application/json:
               schema:
@@ -62,8 +70,6 @@ paths:
                         $ref: "#/components/schemas/SafeUser"
                       accessToken:
                         type: string
-                      refreshToken:
-                        type: string
         "400":
           description: Validation error
         "409":
@@ -72,7 +78,9 @@ paths:
   /api/v1/auth/login:
     post:
       summary: Login
-      description: Authenticate with email and password to receive JWT tokens.
+      description: >
+        Authenticate with email and password. Returns an access token in the response body
+        and sets the refresh token in an HttpOnly cookie.
       tags:
         - Authentication
       requestBody:
@@ -94,7 +102,15 @@ paths:
                   example: Password123
       responses:
         "200":
-          description: Login successful
+          description: >
+            Login successful. The refresh token is set in an HttpOnly cookie;
+            only the access token is returned in the response body.
+          headers:
+            Set-Cookie:
+              description: HttpOnly refresh token cookie
+              schema:
+                type: string
+                example: refreshToken=eyJhbG...; HttpOnly; Path=/api/v1/auth; SameSite=Strict
           content:
             application/json:
               schema:
@@ -113,8 +129,6 @@ paths:
                         $ref: "#/components/schemas/SafeUser"
                       accessToken:
                         type: string
-                      refreshToken:
-                        type: string
         "401":
           description: Invalid email or password
         "403":
@@ -124,24 +138,20 @@ paths:
     post:
       summary: Refresh tokens
       description: >
-        Exchange a valid refresh token for a new access token and refresh token.
-        Implements token rotation — the old refresh token is invalidated.
+        Exchange the HttpOnly refresh token cookie for a new access token.
+        The refresh token is rotated and updated in the cookie.
+        Send requests with credentials enabled so the cookie is included.
       tags:
         - Authentication
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - refreshToken
-              properties:
-                refreshToken:
-                  type: string
       responses:
         "200":
           description: Tokens refreshed successfully
+          headers:
+            Set-Cookie:
+              description: Rotated HttpOnly refresh token cookie
+              schema:
+                type: string
+                example: refreshToken=eyJhbG...; HttpOnly; Path=/api/v1/auth; SameSite=Strict
           content:
             application/json:
               schema:
@@ -158,8 +168,6 @@ paths:
                     properties:
                       accessToken:
                         type: string
-                      refreshToken:
-                        type: string
         "401":
           description: Invalid or expired refresh token
         "403":
@@ -168,7 +176,9 @@ paths:
   /api/v1/auth/logout:
     post:
       summary: Logout
-      description: Invalidate the stored refresh token. Requires authentication.
+      description: >
+        Invalidate the stored refresh token and clear the HttpOnly refresh token cookie.
+        Requires authentication.
       tags:
         - Authentication
       security:
@@ -176,6 +186,12 @@ paths:
       responses:
         "200":
           description: Logged out successfully
+          headers:
+            Set-Cookie:
+              description: Clears the refresh token cookie
+              schema:
+                type: string
+                example: refreshToken=; Path=/api/v1/auth; Expires=Thu, 01 Jan 1970 00:00:00 GMT
           content:
             application/json:
               schema:

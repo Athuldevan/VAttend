@@ -3,8 +3,13 @@ import { asyncHandler } from "../../../shared/utils/asyncHandler.js";
 import { sendSuccess } from "../../../shared/utils/apiResponse.js";
 import { HTTP_STATUS } from "../../../shared/errors/errorCodes.js";
 import { AppError } from "../../../shared/errors/AppError.js";
+import {
+  setRefreshTokenCookie,
+  clearRefreshTokenCookie,
+  getRefreshTokenFromCookie,
+} from "../../../shared/utils/refreshTokenCookie.js";
 import * as authService from "../service/auth.service.js";
-import type { RegisterBody, LoginBody, RefreshBody } from "../auth.validation.js";
+import type { RegisterBody, LoginBody } from "../auth.validation.js";
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as RegisterBody;
@@ -17,10 +22,11 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     departmentId: body.departmentId,
   });
 
+  setRefreshTokenCookie(res, tokens.refreshToken);
+
   sendSuccess(res, HTTP_STATUS.CREATED, "Registration successful", {
     user,
     accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
   });
 });
 
@@ -32,19 +38,28 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     password: body.password,
   });
 
+  setRefreshTokenCookie(res, tokens.refreshToken);
+
   sendSuccess(res, HTTP_STATUS.OK, "Login successful", {
     user,
     accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
   });
 });
 
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
-  const body = req.body as RefreshBody;
+  const refreshToken = getRefreshTokenFromCookie(req);
 
-  const tokens = await authService.refresh(body.refreshToken);
+  if (!refreshToken) {
+    throw new AppError("Refresh token is required", HTTP_STATUS.UNAUTHORIZED);
+  }
 
-  sendSuccess(res, HTTP_STATUS.OK, "Tokens refreshed successfully", tokens);
+  const tokens = await authService.refresh(refreshToken);
+
+  setRefreshTokenCookie(res, tokens.refreshToken);
+
+  sendSuccess(res, HTTP_STATUS.OK, "Tokens refreshed successfully", {
+    accessToken: tokens.accessToken,
+  });
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
@@ -53,6 +68,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
   }
 
   await authService.logout(req.user.userId);
+  clearRefreshTokenCookie(res);
 
   sendSuccess(res, HTTP_STATUS.OK, "Logged out successfully");
 });
