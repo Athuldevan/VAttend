@@ -1,0 +1,74 @@
+import type { Request, Response, NextFunction } from "express";
+import { AppError } from "../shared/errors/AppError.js";
+import { HTTP_STATUS } from "../shared/errors/errorCodes.js";
+import { sendError } from "../shared/utils/apiResponse.js";
+import { env } from "../config/env.js";
+
+/**
+ * Centralised error-handling middleware.
+ * Must be registered LAST (after all routes).
+ */
+export const errorHandler = (
+  err: Error,
+  _req: Request,
+  res: Response,
+  _next: NextFunction,
+): void => {
+  // ── Operational AppError ──────────────────────────────────────
+  if (err instanceof AppError) {
+    sendError(res, err.statusCode, err.message);
+    return;
+  }
+
+  // Cast to unknown-indexed record for non-standard error properties
+  const errRecord = err as unknown as Record<string, unknown>;
+
+  // ── MongoDB duplicate-key error (code 11000) ──────────────────
+  if (errRecord.code === 11000 || errRecord.code === "11000") {
+    const keyValue = errRecord.keyValue as
+      | Record<string, unknown>
+      | undefined;
+    const field = keyValue ? Object.keys(keyValue)[0] ?? "field" : "field";
+    sendError(
+      res,
+      HTTP_STATUS.CONFLICT,
+      `An account with this ${field} already exists`,
+    );
+    return;
+  }
+
+  // ── Mongoose ValidationError ──────────────────────────────────
+  if (err.name === "ValidationError") {
+    const mongooseErr = err as unknown as {
+      errors: Record<string, { message: string }>;
+    };
+    const messages = Object.values(mongooseErr.errors).map((e) => e.message);
+    sendError(res, HTTP_STATUS.BAD_REQUEST, messages.join(". "));
+    return;
+  }
+
+  // ── Mongoose CastError (invalid ObjectId etc.) ────────────────
+  if (err.name === "CastError") {
+    sendError(res, HTTP_STATUS.BAD_REQUEST, "Invalid resource identifier");
+    return;
+  }
+
+  // ── JWT errors ────────────────────────────────────────────────
+  if (err.name === "JsonWebTokenError") {
+    sendError(res, HTTP_STATUS.UNAUTHORIZED, "Invalid token");
+    return;
+  }
+  if (err.name === "TokenExpiredError") {
+    sendError(res, HTTP_STATUS.UNAUTHORIZED, "Token has expired");
+    return;
+  }
+
+  // ── Unexpected / programmer errors ────────────────────────────
+  const isDev = env.NODE_ENV === "development";
+  console.error("UNHANDLED ERROR:", err);
+  sendError(
+    res,
+    HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    isDev ? err.message : "An unexpected error occurred",
+  );
+};

@@ -1,37 +1,19 @@
-import express from 'express';
-import type { Request, Response } from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import swaggerSpec from './docs/swagger.js';
-import healthRoutes from './routes/health.js';
-import { connectDB } from './config/db.js';
-
-dotenv.config();
-
-const app = express();
-const port = process.env.PORT || 3000;
+import { env } from "./config/env.js";
+import { connectDB } from "./config/db.js";
+import app from "./app.js";
+import swaggerSpec from "./docs/swagger.js";
+import type { Request, Response } from "express";
 
 // Connect to Database
 connectDB();
 
-app.use(cors());
-app.use(express.json());
-
-// API Routes
-app.use('/api', healthRoutes);
-
-app.get('/', (req: Request, res: Response) => {
-  res.send('Attendance Management System API is running');
-});
-
-// Swagger JSON Endpoint
-app.get('/api-docs.json', (req: Request, res: Response) => {
-  res.setHeader('Content-Type', 'application/json');
+// ── Swagger / API Docs ──────────────────────────────────────────
+app.get("/api-docs.json", (_req: Request, res: Response) => {
+  res.setHeader("Content-Type", "application/json");
   res.send(swaggerSpec);
 });
 
-// Stoplight Elements Swagger UI
-app.get('/docs', (req: Request, res: Response) => {
+app.get("/docs", (_req: Request, res: Response) => {
   res.send(`
     <!doctype html>
     <html lang="en">
@@ -39,7 +21,6 @@ app.get('/docs', (req: Request, res: Response) => {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         <title>AMS API Docs</title>
-        <!-- Stoplight Elements -->
         <script src="https://unpkg.com/@stoplight/elements/web-components.min.js"></script>
         <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
       </head>
@@ -54,6 +35,9 @@ app.get('/docs', (req: Request, res: Response) => {
     </html>
   `);
 });
+
+// ── Start server ────────────────────────────────────────────────
+const port = env.PORT;
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
