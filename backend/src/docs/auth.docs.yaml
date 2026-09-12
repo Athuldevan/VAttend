@@ -1,264 +1,264 @@
-paths:
-  /api/v1/auth/register:
-    post:
-      summary: Register a new user
-      description: >
-        Create a new STUDENT or TEACHER account. ADMIN registration is not allowed
-        through this endpoint.
-      tags:
-        - Authentication
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - name
-                - email
-                - password
-                - role
-                - departmentId
-              properties:
-                name:
-                  type: string
-                  minLength: 2
-                  example: John Doe
-                email:
-                  type: string
-                  format: email
-                  example: john.doe@example.com
-                password:
-                  type: string
-                  minLength: 8
-                  description: "Must contain: uppercase, lowercase, and number"
-                  example: Password123
-                role:
-                  type: string
-                  enum: [STUDENT, TEACHER]
-                  example: STUDENT
-                departmentId:
-                  type: string
-                  description: Valid MongoDB ObjectId
-                  example: 507f1f77bcf86cd799439011
-      responses:
-        "201":
-          description: >
-            Registration successful. The refresh token is set in an HttpOnly cookie;
-            only the access token is returned in the response body.
-          headers:
-            Set-Cookie:
-              description: HttpOnly refresh token cookie
-              schema:
-                type: string
-                example: refreshToken=eyJhbG...; HttpOnly; Path=/api/v1/auth; SameSite=Strict
+  paths:
+    /api/v1/auth/register:
+      post:
+        summary: Register a new user
+        description: >
+          Create a new STUDENT or TEACHER account. ADMIN registration is not allowed
+          through this endpoint.
+        tags:
+          - Authentication
+        requestBody:
+          required: true
           content:
             application/json:
               schema:
                 type: object
+                required:
+                  - name
+                  - email
+                  - password
+                  - role
+                  - departmentId
                 properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
+                  name:
                     type: string
-                    example: Registration successful
-                  data:
-                    type: object
-                    properties:
-                      user:
-                        $ref: "#/components/schemas/SafeUser"
-                      accessToken:
-                        type: string
-        "400":
-          description: Validation error
-        "409":
-          description: Duplicate email
-
-  /api/v1/auth/login:
-    post:
-      summary: Login
-      description: >
-        Authenticate with email and password. Returns an access token in the response body
-        and sets the refresh token in an HttpOnly cookie.
-      tags:
-        - Authentication
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - email
-                - password
-              properties:
-                email:
+                    minLength: 2
+                    example: John Doe
+                  email:
+                    type: string
+                    format: email
+                    example: athuldevan90@gmail.com
+                  password:
+                    type: string
+                    minLength: 8
+                    description: "Must contain: uppercase, lowercase, and number"
+                    example: Ams@12345
+                  role:
+                    type: string
+                    enum: [STUDENT, TEACHER]
+                    example: STUDENT
+                  departmentId:
+                    type: string
+                    description: Valid MongoDB ObjectId
+                    example: 507f1f77bcf86cd799439011
+        responses:
+          "201":
+            description: >
+              Registration successful. The refresh token is set in an HttpOnly cookie;
+              only the access token is returned in the response body.
+            headers:
+              Set-Cookie:
+                description: HttpOnly refresh token cookie
+                schema:
                   type: string
-                  format: email
-                  example: john.doe@example.com
-                password:
+                  example: refreshToken=eyJhbG...; HttpOnly; Path=/api/v1/auth; SameSite=Strict
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    message:
+                      type: string
+                      example: Registration successful
+                    data:
+                      type: object
+                      properties:
+                        user:
+                          $ref: "#/components/schemas/SafeUser"
+                        accessToken:
+                          type: string
+          "400":
+            description: Validation error
+          "409":
+            description: Duplicate email
+
+    /api/v1/auth/login:
+      post:
+        summary: Login
+        description: >
+          Authenticate with email and password. Returns an access token in the response body
+          and sets the refresh token in an HttpOnly cookie.
+        tags:
+          - Authentication
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - email
+                  - password
+                properties:
+                  email:
+                    type: string
+                    format: email
+                    example: athuldevan90@gmail.com
+                  password:
+                    type: string
+                    example: Ams@12345
+        responses:
+          "200":
+            description: >
+              Login successful. The refresh token is set in an HttpOnly cookie;
+              only the access token is returned in the response body.
+            headers:
+              Set-Cookie:
+                description: HttpOnly refresh token cookie
+                schema:
                   type: string
-                  example: Password123
-      responses:
-        "200":
-          description: >
-            Login successful. The refresh token is set in an HttpOnly cookie;
-            only the access token is returned in the response body.
-          headers:
-            Set-Cookie:
-              description: HttpOnly refresh token cookie
-              schema:
-                type: string
-                example: refreshToken=eyJhbG...; HttpOnly; Path=/api/v1/auth; SameSite=Strict
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Login successful
-                  data:
-                    type: object
-                    properties:
-                      user:
-                        $ref: "#/components/schemas/SafeUser"
-                      accessToken:
-                        type: string
-        "401":
-          description: Invalid email or password
-        "403":
-          description: Account deactivated
+                  example: refreshToken=eyJhbG...; HttpOnly; Path=/api/v1/auth; SameSite=Strict
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    message:
+                      type: string
+                      example: Login successful
+                    data:
+                      type: object
+                      properties:
+                        user:
+                          $ref: "#/components/schemas/SafeUser"
+                        accessToken:
+                          type: string
+          "401":
+            description: Invalid email or password
+          "403":
+            description: Account deactivated
 
-  /api/v1/auth/refresh:
-    post:
-      summary: Refresh tokens
-      description: >
-        Exchange the HttpOnly refresh token cookie for a new access token.
-        The refresh token is rotated and updated in the cookie.
-        Send requests with credentials enabled so the cookie is included.
-      tags:
-        - Authentication
-      responses:
-        "200":
-          description: Tokens refreshed successfully
-          headers:
-            Set-Cookie:
-              description: Rotated HttpOnly refresh token cookie
-              schema:
-                type: string
-                example: refreshToken=eyJhbG...; HttpOnly; Path=/api/v1/auth; SameSite=Strict
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Tokens refreshed successfully
-                  data:
-                    type: object
-                    properties:
-                      accessToken:
-                        type: string
-        "401":
-          description: Invalid or expired refresh token
-        "403":
-          description: Account deactivated
+    /api/v1/auth/refresh:
+      post:
+        summary: Refresh tokens
+        description: >
+          Exchange the HttpOnly refresh token cookie for a new access token.
+          The refresh token is rotated and updated in the cookie.
+          Send requests with credentials enabled so the cookie is included.
+        tags:
+          - Authentication
+        responses:
+          "200":
+            description: Tokens refreshed successfully
+            headers:
+              Set-Cookie:
+                description: Rotated HttpOnly refresh token cookie
+                schema:
+                  type: string
+                  example: refreshToken=eyJhbG...; HttpOnly; Path=/api/v1/auth; SameSite=Strict
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    message:
+                      type: string
+                      example: Tokens refreshed successfully
+                    data:
+                      type: object
+                      properties:
+                        accessToken:
+                          type: string
+          "401":
+            description: Invalid or expired refresh token
+          "403":
+            description: Account deactivated
 
-  /api/v1/auth/logout:
-    post:
-      summary: Logout
-      description: >
-        Invalidate the stored refresh token and clear the HttpOnly refresh token cookie.
-        Requires authentication.
-      tags:
-        - Authentication
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Logged out successfully
-          headers:
-            Set-Cookie:
-              description: Clears the refresh token cookie
-              schema:
-                type: string
-                example: refreshToken=; Path=/api/v1/auth; Expires=Thu, 01 Jan 1970 00:00:00 GMT
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Logged out successfully
-        "401":
-          description: Authentication required
+    /api/v1/auth/logout:
+      post:
+        summary: Logout
+        description: >
+          Invalidate the stored refresh token and clear the HttpOnly refresh token cookie.
+          Requires authentication.
+        tags:
+          - Authentication
+        security:
+          - bearerAuth: []
+        responses:
+          "200":
+            description: Logged out successfully
+            headers:
+              Set-Cookie:
+                description: Clears the refresh token cookie
+                schema:
+                  type: string
+                  example: refreshToken=; Path=/api/v1/auth; Expires=Thu, 01 Jan 1970 00:00:00 GMT
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    message:
+                      type: string
+                      example: Logged out successfully
+          "401":
+            description: Authentication required
 
-  /api/v1/auth/me:
-    get:
-      summary: Get current user
-      description: Return the authenticated user's profile. Requires authentication.
-      tags:
-        - Authentication
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: User retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: User retrieved successfully
-                  data:
-                    $ref: "#/components/schemas/SafeUser"
-        "401":
-          description: Authentication required
+    /api/v1/auth/me:
+      get:
+        summary: Get current user
+        description: Return the authenticated user's profile. Requires authentication.
+        tags:
+          - Authentication
+        security:
+          - bearerAuth: []
+        responses:
+          "200":
+            description: User retrieved successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    message:
+                      type: string
+                      example: User retrieved successfully
+                    data:
+                      $ref: "#/components/schemas/SafeUser"
+          "401":
+            description: Authentication required
 
-components:
-  schemas:
-    SafeUser:
-      type: object
-      properties:
-        id:
-          type: string
-          example: 507f1f77bcf86cd799439011
-        name:
-          type: string
-          example: John Doe
-        email:
-          type: string
-          example: john.doe@example.com
-        role:
-          type: string
-          enum: [ADMIN, TEACHER, STUDENT]
-          example: STUDENT
-        departmentId:
-          type: string
-          example: 507f1f77bcf86cd799439011
-        isActive:
-          type: boolean
-          example: true
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+  components:
+    schemas:
+      SafeUser:
+        type: object
+        properties:
+          id:
+            type: string
+            example: 507f1f77bcf86cd799439011
+          name:
+            type: string
+            example: John
+          email:
+            type: string
+            example: john.doe@example.com
+          role:
+            type: string
+            enum: [ADMIN, TEACHER, STUDENT]
+            example: STUDENT
+          departmentId:
+            type: string
+            example: 507f1f77bcf86cd799439011
+          isActive:
+            type: boolean
+            example: true
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT

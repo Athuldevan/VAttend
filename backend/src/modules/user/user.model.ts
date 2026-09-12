@@ -22,6 +22,18 @@ const userSchema = new Schema<IUserDocument>(
       required: [true, "Password is required"],
       select: false,
     },
+    rollNumber: {
+      type: Number,
+      required: [true, "Roll number is required"],
+      unique: true,
+      index: true,
+    },
+    class: {
+      type: Schema.Types.ObjectId,
+      ref: "Class",
+      required: [true, "Class is required"],
+      index: true,
+    },
     role: {
       type: String,
       enum: {

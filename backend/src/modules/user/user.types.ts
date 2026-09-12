@@ -9,6 +9,8 @@ export interface IUser {
   role: Role;
   departmentId: Types.ObjectId;
   isActive: boolean;
+  rollNumber : number;
+  class : Types.ObjectId;
   refreshTokenHash?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
@@ -23,6 +25,7 @@ export interface SafeUser {
   name: string;
   email: string;
   role: Role;
+  rollNumber : number 
   departmentId: string;
   isActive: boolean;
 }

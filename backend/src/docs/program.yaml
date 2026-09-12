@@ -1,0 +1,399 @@
+paths:
+
+  /api/v1/programs:
+
+    get:
+      summary: Get all programs
+      description: >
+        Retrieve all programs belonging to a department.
+        The requesting user must be authenticated. Results are scoped
+        to the requested department.
+      tags:
+        - Programs
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: departmentId
+          in: query
+          required: true
+          description: Valid MongoDB ObjectId of the department
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+            example: 507f1f77bcf86cd799439011
+
+      responses:
+
+        "200":
+          description: Programs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  message:
+                    type: string
+                    example: Programs fetched successfully
+
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Program"
+
+        "400":
+          description: Invalid department ID
+
+        "401":
+          description: Authentication required
+
+
+    post:
+      summary: Create a new program
+      description: >
+        Create a new academic program under a department.
+        Only ADMIN users are authorized to create programs.
+        Program names must be unique within a department.
+      tags:
+        - Programs
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProgramRequest"
+
+      responses:
+
+        "201":
+          description: Program created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  message:
+                    type: string
+                    example: Program created successfully
+
+                  data:
+                    $ref: "#/components/schemas/Program"
+
+        "400":
+          description: Validation error
+
+        "401":
+          description: Authentication required
+
+        "403":
+          description: You do not have permission to perform this action
+
+        "409":
+          description: Program with this name already exists in this department
+
+
+  /api/v1/programs/{id}:
+
+    get:
+      summary: Get program by ID
+      description: >
+        Retrieve a single program using its MongoDB ObjectId.
+        Authentication is required.
+      tags:
+        - Programs
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+
+      responses:
+
+        "200":
+          description: Program retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  message:
+                    type: string
+                    example: Program fetched successfully
+
+                  data:
+                    $ref: "#/components/schemas/Program"
+
+        "400":
+          description: Invalid program ID
+
+        "401":
+          description: Authentication required
+
+        "404":
+          description: Program not found
+
+
+    patch:
+      summary: Update program
+      description: >
+        Update an existing academic program.
+        Only ADMIN users are authorized to update programs.
+        At least one field must be provided.
+      tags:
+        - Programs
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProgramRequest"
+
+      responses:
+
+        "200":
+          description: Program updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  message:
+                    type: string
+                    example: Program updated successfully
+
+                  data:
+                    $ref: "#/components/schemas/Program"
+
+        "400":
+          description: Validation error or invalid program ID
+
+        "401":
+          description: Authentication required
+
+        "403":
+          description: You do not have permission to perform this action
+
+        "404":
+          description: Program not found
+
+        "409":
+          description: Program with this name already exists in this department
+
+
+    delete:
+      summary: Delete program
+      description: >
+        Delete an academic program.
+        Only ADMIN users are authorized to perform this operation.
+        The server should prevent deletion when a Class still references
+        the program.
+      tags:
+        - Programs
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+
+      responses:
+
+        "200":
+          description: Program deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  message:
+                    type: string
+                    example: Program deleted successfully
+
+                  data:
+                    nullable: true
+                    example: null
+
+        "400":
+          description: Invalid program ID
+
+        "401":
+          description: Authentication required
+
+        "403":
+          description: You do not have permission to perform this action
+
+        "404":
+          description: Program not found
+
+        "409":
+          description: >
+            Program cannot be deleted because one or more Classes
+            still reference this program
+
+
+components:
+
+  schemas:
+
+    Program:
+      type: object
+      required:
+        - id
+        - departmentId
+        - name
+        - level
+        - durationYears
+        - createdAt
+        - updatedAt
+
+      properties:
+
+        id:
+          type: string
+          description: MongoDB ObjectId of the program
+          example: 507f1f77bcf86cd799439012
+
+        departmentId:
+          type: string
+          description: MongoDB ObjectId of the department
+          example: 507f1f77bcf86cd799439011
+
+        name:
+          type: string
+          description: Name of the academic program
+          example: B.Sc Statistics
+
+        level:
+          type: string
+          enum:
+            - UG
+            - PG
+          description: Academic level
+          example: UG
+
+        durationYears:
+          type: integer
+          minimum: 1
+          maximum: 6
+          description: Duration of the program in years
+          example: 3
+
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-09-12T08:00:00.000Z
+
+        updatedAt:
+          type: string
+          format: date-time
+          example: 2026-09-12T08:00:00.000Z
+
+
+    CreateProgramRequest:
+      type: object
+      required:
+        - departmentId
+        - name
+        - level
+        - durationYears
+
+      properties:
+
+        departmentId:
+          type: string
+          description: Valid MongoDB ObjectId of the department
+          example: 507f1f77bcf86cd799439011
+
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Program name
+          example: B.Sc Statistics
+
+        level:
+          type: string
+          enum:
+            - UG
+            - PG
+          example: UG
+
+        durationYears:
+          type: integer
+          minimum: 1
+          maximum: 6
+          description: >
+            Program duration in complete years.
+            Must be a whole number between 1 and 6.
+          example: 3
+
+
+    UpdateProgramRequest:
+      type: object
+      minProperties: 1
+
+      properties:
+
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Program name
+          example: B.Sc Statistics
+
+        level:
+          type: string
+          enum:
+            - UG
+            - PG
+          example: UG
+
+        durationYears:
+          type: integer
+          minimum: 1
+          maximum: 6
+          description: >
+            Program duration in complete years.
+            Must be a whole number between 1 and 6.
+          example: 3
+
+
+  parameters:
+
+    ProgramId:
+      name: id
+      in: path
+      required: true
+      description: Valid MongoDB ObjectId of the program
+      schema:
+        type: string
+        pattern: "^[0-9a-fA-F]{24}$"
+        example: 507f1f77bcf86cd799439012
