@@ -1,0 +1,400 @@
+paths:
+  /api/v1/classes:
+    get:
+      summary: Get all classes
+      description: >
+        Retrieve all classes. Authenticated users can access this endpoint.
+        Results may be filtered by departmentId.
+      tags:
+        - Classes
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: departmentId
+          in: query
+          required: false
+          description: >
+            MongoDB ObjectId of the department. If provided, only classes
+            belonging to this department are returned.
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{24}$"
+            example: 507f1f77bcf86cd799439011
+
+      responses:
+        "200":
+          description: Classes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  message:
+                    type: string
+                    example: Classes fetched successfully
+
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Class"
+
+        "400":
+          description: Invalid department ID
+
+        "401":
+          description: Authentication required
+
+    post:
+      summary: Create a new class
+      description: >
+        Create a new class under a program and department.
+        Only ADMIN users are authorized to create classes.
+        The program must belong to the specified department.
+        The year cannot exceed the duration of the selected program.
+      tags:
+        - Classes
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClassRequest"
+
+      responses:
+        "201":
+          description: Class created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  message:
+                    type: string
+                    example: Class created successfully
+
+                  data:
+                    $ref: "#/components/schemas/Class"
+
+        "400":
+          description: Validation error
+
+        "401":
+          description: Authentication required
+
+        "403":
+          description: You do not have permission to perform this action
+
+        "404":
+          description: Program not found
+
+        "409":
+          description: >
+            Class already exists for this program, year and academic year
+
+  /api/v1/classes/{id}:
+    get:
+      summary: Get class by ID
+      description: >
+        Retrieve a single class using its MongoDB ObjectId.
+        Authentication is required.
+      tags:
+        - Classes
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+
+      responses:
+        "200":
+          description: Class retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  message:
+                    type: string
+                    example: Class fetched successfully
+
+                  data:
+                    $ref: "#/components/schemas/Class"
+
+        "400":
+          description: Invalid class ID
+
+        "401":
+          description: Authentication required
+
+        "404":
+          description: Class not found
+
+    patch:
+      summary: Update class
+      description: >
+        Update an existing class. Only ADMIN users are authorized.
+        At least one field must be provided.
+        The program and department relationship is validated by the server.
+      tags:
+        - Classes
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClassRequest"
+
+      responses:
+        "200":
+          description: Class updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  message:
+                    type: string
+                    example: Class updated successfully
+
+                  data:
+                    $ref: "#/components/schemas/Class"
+
+        "400":
+          description: Validation error or invalid class ID
+
+        "401":
+          description: Authentication required
+
+        "403":
+          description: You do not have permission to perform this action
+
+        "404":
+          description: Class or program not found
+
+        "409":
+          description: >
+            Another class already exists for the same program,
+            year and academic year
+
+    delete:
+      summary: Delete class
+      description: >
+        Permanently delete a class.
+        Only ADMIN users are authorized to perform this operation.
+      tags:
+        - Classes
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - $ref: "#/components/parameters/ClassId"
+
+      responses:
+        "200":
+          description: Class deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+                  message:
+                    type: string
+                    example: Class deleted successfully
+
+                  data:
+                    nullable: true
+                    example: null
+
+        "400":
+          description: Invalid class ID
+
+        "401":
+          description: Authentication required
+
+        "403":
+          description: You do not have permission to perform this action
+
+        "404":
+          description: Class not found
+
+        "409":
+          description: >
+            Class cannot be deleted because it is referenced
+            by other resources
+
+components:
+  schemas:
+    Class:
+      type: object
+      required:
+        - id
+        - programId
+        - departmentId
+        - year
+        - academicYear
+        - currentSemester
+        - createdAt
+        - updatedAt
+
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectId of the class
+          example: 507f1f77bcf86cd799439013
+
+        programId:
+          type: string
+          description: MongoDB ObjectId of the program
+          example: 507f1f77bcf86cd799439012
+
+        departmentId:
+          type: string
+          description: MongoDB ObjectId of the department
+          example: 507f1f77bcf86cd799439011
+
+        year:
+          type: integer
+          minimum: 1
+          description: Academic year of the class within the program
+          example: 2
+
+        academicYear:
+          type: string
+          pattern: "^\\d{4}-\\d{2}$"
+          description: Academic year in YYYY-YY format
+          example: "2026-27"
+
+        currentSemester:
+          type: integer
+          minimum: 1
+          description: Current semester of the class
+          example: 3
+
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-09-12T08:00:00.000Z"
+
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-09-12T08:00:00.000Z"
+
+    CreateClassRequest:
+      type: object
+      required:
+        - programId
+        - departmentId
+        - year
+        - academicYear
+        - currentSemester
+
+      properties:
+        programId:
+          type: string
+          description: >
+            MongoDB ObjectId of the program. The program must
+            belong to the specified department.
+          example: 507f1f77bcf86cd799439012
+
+        departmentId:
+          type: string
+          description: MongoDB ObjectId of the department
+          example: 507f1f77bcf86cd799439011
+
+        year:
+          type: integer
+          minimum: 1
+          maximum: 6
+          description: >
+            Year of the class. Cannot exceed the duration of the program.
+          example: 2
+
+        academicYear:
+          type: string
+          pattern: "^\\d{4}-\\d{2}$"
+          description: Academic year in YYYY-YY format
+          example: "2026-27"
+
+        currentSemester:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: Current semester
+          example: 3
+
+    UpdateClassRequest:
+      type: object
+      minProperties: 1
+
+      properties:
+        programId:
+          type: string
+          description: MongoDB ObjectId of the program
+          example: 507f1f77bcf86cd799439012
+
+        departmentId:
+          type: string
+          description: MongoDB ObjectId of the department
+          example: 507f1f77bcf86cd799439011
+
+        year:
+          type: integer
+          minimum: 1
+          maximum: 6
+          description: Year of the class
+          example: 2
+
+        academicYear:
+          type: string
+          pattern: "^\\d{4}-\\d{2}$"
+          description: Academic year in YYYY-YY format
+          example: "2026-27"
+
+        currentSemester:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: Current semester
+          example: 4
+
+  parameters:
+    ClassId:
+      name: id
+      in: path
+      required: true
+      description: Valid MongoDB ObjectId of the class
+      schema:
+        type: string
+        pattern: "^[0-9a-fA-F]{24}$"
+        example: 507f1f77bcf86cd799439013
