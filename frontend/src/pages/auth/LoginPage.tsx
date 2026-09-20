@@ -1,238 +1,154 @@
-import React, { useState } from 'react';
+
+import React, { useState } from "react";
+import { login } from "../../api/auth";
+import { useNavigate } from "react-router-dom";
 
 export const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("athuldevan90@gmail.com");
+  const [password, setPassword] = useState("Ams@12345");
   const [rememberMe, setRememberMe] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log({ email, password, rememberMe });
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await login({
+        email,
+        password,
+      });
+
+     if(response.success){
+     navigate("/dashboard");
+     }
+
+    
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        "Unable to sign in. Please check your credentials.";
+
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div style={styles.pageContainer}>
-      <div style={styles.card}>
-        
-        {/* Header / Branding */}
-        <div style={styles.header}>
-          <div style={styles.logoBadge}>A</div>
-          <h2 style={styles.title}>Welcome back</h2>
-          <p style={styles.subtitle}>Please sign in to your account</p>
+    <div className="min-h-screen bg-indigo-50/30 px-4 flex items-center justify-center">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-lg shadow-black/5">
+
+        {/* Header */}
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 text-xl font-bold text-indigo-600">
+            A
+          </div>
+
+          <h2 className="text-2xl font-bold text-gray-900">
+            Welcome back
+          </h2>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Please sign in to your account
+          </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={styles.form}>
-            
-          {/* Email Field */}
-          <div style={styles.inputGroup}>
-            <label htmlFor="email" style={styles.label}>
-              Email address
-            </label>
+        <form onSubmit={handleSubmit} className="space-y-5">
+
+          {/* Email */}
+          <div>
             <input
               id="email"
               type="email"
+              autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              style={styles.input}
-              onFocus={(e) => (e.target.style.borderColor = '#4F46E5')}
-              onBlur={(e) => (e.target.style.borderColor = '#E5E7EB')}
+              placeholder="Email address"
+              className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
 
-          {/* Password Field */}
-          <div style={styles.inputGroup}>
-            <label htmlFor="password" style={styles.label}>
-              Password
-            </label>
+          {/* Password */}
+          <div>
             <input
               id="password"
               type="password"
+              autoComplete="current-password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={styles.input}
-              onFocus={(e) => (e.target.style.borderColor = '#4F46E5')}
-              onBlur={(e) => (e.target.style.borderColor = '#E5E7EB')}
+              placeholder="Password"
+              className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
 
-          {/* Remember Me & Forgot Password */}
-          <div style={styles.rowBetween}>
-            <label style={styles.checkboxLabel}>
+          {/* Error */}
+          {error && (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600"
+            >
+              {error}
+            </div>
+          )}
+
+          {/* Remember / Forgot */}
+          <div className="flex items-center justify-between text-sm">
+            <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                style={styles.checkbox}
+                className="h-4 w-4 rounded border-gray-300 accent-indigo-600"
               />
-              <span style={styles.checkboxText}>Remember me</span>
+
+              <span className="text-gray-600">
+                Remember me
+              </span>
             </label>
 
-            <a href="#forgot-password" style={styles.link}>
+            <button
+              type="button"
+              className="font-medium text-indigo-600 transition hover:text-indigo-700"
+              onClick={() => {
+                // TODO: Navigate to forgot password page
+              }}
+            >
               Forgot password?
-            </a>
+            </button>
           </div>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <button
             type="submit"
-            style={styles.button}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#4338CA')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#4F46E5')}
+            disabled={loading}
+            className="w-full rounded-lg bg-indigo-600 px-3 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Sign in
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
-        {/* Footer Status */}
-        <div style={styles.footer}>
-          <span>System Status: </span>
-          <span style={styles.statusBadge}>
-            <span style={styles.statusDot}></span> Operational
+        {/* Footer */}
+        <div className="mt-6 border-t border-gray-200 pt-4 text-center text-xs text-gray-500">
+          <span>System Status:</span>
+
+          <span className="ml-1 inline-flex items-center gap-1.5 font-medium text-green-600">
+            <span className="h-2 w-2 rounded-full bg-green-600" />
+            Operational
           </span>
         </div>
-
       </div>
     </div>
   );
-};
-
-// Styles mapped strictly to your design colors
-const styles: { [key: string]: React.CSSProperties } = {
-  pageContainer: {
-    display: 'flex',
-    minHeight: '100vh',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E0E7FF55', // Primary light with transparency
-    padding: '1rem',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '400px',
-    backgroundColor: '#FFFFFF',
-    borderRadius: '16px',
-    padding: '32px',
-    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
-    border: '1px solid #E5E7EB', // Neutral borders
-  },
-  header: {
-    textAlign: 'center',
-    marginBottom: '24px',
-  },
-  logoBadge: {
-    margin: '0 auto 16px auto',
-    display: 'flex',
-    height: '48px',
-    width: '48px',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '12px',
-    backgroundColor: '#E0E7FF', // Primary light
-    color: '#4F46E5', // Primary
-    fontWeight: 'bold',
-    fontSize: '20px',
-  },
-  title: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#111827',
-    margin: '0 0 8px 0',
-  },
-  subtitle: {
-    fontSize: '14px',
-    color: '#4B5563',
-    margin: 0,
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: 500,
-    color: '#374151',
-  },
-  input: {
-    width: '100%',
-    borderRadius: '8px',
-    border: '1px solid #E5E7EB', // Neutral / borders
-    padding: '10px 14px',
-    fontSize: '14px',
-    color: '#111827',
-    outline: 'none',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.2s',
-  },
-  rowBetween: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    fontSize: '14px',
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    cursor: 'pointer',
-  },
-  checkbox: {
-    height: '16px',
-    width: '16px',
-    borderRadius: '4px',
-    accentColor: '#4F46E5', // Primary
-  },
-  checkboxText: {
-    color: '#4B5563',
-  },
-  link: {
-    color: '#4F46E5', // Primary
-    textDecoration: 'none',
-    fontWeight: 500,
-  },
-  button: {
-    width: '100%',
-    borderRadius: '8px',
-    backgroundColor: '#4F46E5', // Primary
-    color: '#FFFFFF',
-    padding: '12px',
-    fontSize: '14px',
-    fontWeight: 600,
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-  },
-  footer: {
-    marginTop: '24px',
-    borderTop: '1px solid #E5E7EB', // Neutral / borders
-    paddingTop: '16px',
-    textAlign: 'center',
-    fontSize: '12px',
-    color: '#6B7280',
-  },
-  statusBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontWeight: 500,
-    color: '#16A34A', // Present green
-    marginLeft: '4px',
-  },
-  statusDot: {
-    height: '8px',
-    width: '8px',
-    borderRadius: '50%',
-    backgroundColor: '#16A34A', // Present green
-  },
 };

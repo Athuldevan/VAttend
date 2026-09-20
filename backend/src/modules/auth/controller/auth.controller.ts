@@ -35,7 +35,6 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     password: body.password,
   });
   setRefreshTokenCookie(res, tokens.refreshToken);
-  console.log("refresh  token cookie is done");
 
   sendSuccess(res, HTTP_STATUS.OK, "Login successful", {
     user,

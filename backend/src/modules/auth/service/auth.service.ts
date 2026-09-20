@@ -74,7 +74,15 @@ export async function login(input: LoginInput) {
   user.refreshTokenHash = await hashRefreshToken(tokens.refreshToken);
   await user.save();
 
-  return { user, tokens };
+ return {
+    user: {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    },
+    tokens,
+  };
 }
 
 export async function refresh(
