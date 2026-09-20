@@ -23,7 +23,7 @@ export const LoginPage: React.FC = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} style={styles.form}>
-          
+            
           {/* Email Field */}
           <div style={styles.inputGroup}>
             <label htmlFor="email" style={styles.label}>

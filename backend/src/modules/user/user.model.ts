@@ -24,14 +24,19 @@ const userSchema = new Schema<IUserDocument>(
     },
     rollNumber: {
       type: Number,
-      required: [true, "Roll number is required"],
+      required: function (this: IUserDocument): boolean {
+        return this.role === ROLES.STUDENT;
+      },
       unique: true,
+      sparse: true,
       index: true,
     },
     class: {
       type: Schema.Types.ObjectId,
       ref: "Class",
-      required: [true, "Class is required"],
+    required: function (this: IUserDocument): boolean {
+      return this.role === ROLES.STUDENT;
+    },
       index: true,
     },
     role: {

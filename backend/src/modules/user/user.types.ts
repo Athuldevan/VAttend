@@ -9,8 +9,8 @@ export interface IUser {
   role: Role;
   departmentId: Types.ObjectId;
   isActive: boolean;
-  rollNumber : number;
-  class : Types.ObjectId;
+  rollNumber? : number;
+  class? : Types.ObjectId;
   refreshTokenHash?: string | undefined;
   createdAt: Date;
   updatedAt: Date;

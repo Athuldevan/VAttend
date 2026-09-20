@@ -10,27 +10,29 @@ const passwordSchema = z
   .regex(/[a-z]/, "Password must contain at least one lowercase letter")
   .regex(/[0-9]/, "Password must contain at least one number");
 
-export const registerSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Name must be at least 2 characters"),
-  email: z
-    .string()
-    .trim()
-    .email("Invalid email address")
-    .toLowerCase(),
+const studentFieldsSchema = z.object({
+  rollNumber: z.coerce.number().int().positive("Roll number must be positive"),
+  class: z.string().regex(objectIdRegex, "class must be a valid MongoDB ObjectId"),
+});
+
+const commonRegisterSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  email: z.string().trim().email("Invalid email address").toLowerCase(),
   password: passwordSchema,
-  role: z
-    .enum([ROLES.ADMIN, ROLES.TEACHER, ROLES.STUDENT] as const)
-    .refine(
-      (val) => (PUBLIC_REGISTRABLE_ROLES as readonly string[]).includes(val),
-      { message: "Public registration is not allowed for this role" },
-    ),
   departmentId: z
     .string()
     .regex(objectIdRegex, "departmentId must be a valid MongoDB ObjectId"),
 });
+
+export const registerSchema = z.discriminatedUnion("role", [
+  commonRegisterSchema.extend({
+    role: z.literal(ROLES.STUDENT),
+    ...studentFieldsSchema.shape,
+  }),
+  commonRegisterSchema.extend({
+    role: z.literal(ROLES.TEACHER),
+  }),
+]);
 
 export const loginSchema = z.object({
   email: z

@@ -15,7 +15,6 @@ const classSchema = new Schema<IClass>(
     programId: {
       type: Schema.Types.ObjectId,
       ref: 'Program',
-      required: true,
     },
     departmentId: {
       type: Schema.Types.ObjectId,

@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import type { Role } from "../../../shared/constants/roles.js";
 
 export interface RegisterInput {
@@ -6,6 +7,8 @@ export interface RegisterInput {
   password: string;
   role: Role;
   departmentId: string;
+  rollNumber?: number;
+  class?:string;
 }
 
 export interface LoginInput {

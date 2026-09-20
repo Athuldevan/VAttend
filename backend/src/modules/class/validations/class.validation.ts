@@ -20,7 +20,7 @@ const academicYearSchema = z
 
 // CREATE
 export const createClassSchema = z.object({
-  programId: objectIdSchema,
+  programId: objectIdSchema.optional(),
 
   departmentId: objectIdSchema,
 

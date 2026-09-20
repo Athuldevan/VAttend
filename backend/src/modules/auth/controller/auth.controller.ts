@@ -11,16 +11,13 @@ import {
 import * as authService from "../service/auth.service.js";
 import type { RegisterBody, LoginBody } from "../auth.validation.js";
 
+// ────────────────────────────────────────────
+
+//register
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as RegisterBody;
 
-  const { user, tokens } = await authService.createUser({
-    name: body.name,
-    email: body.email,
-    password: body.password,
-    role: body.role,
-    departmentId: body.departmentId,
-  });
+  const { user, tokens } = await authService.createUser(body);
 
   setRefreshTokenCookie(res, tokens.refreshToken);
 
@@ -37,8 +34,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     email: body.email,
     password: body.password,
   });
-
   setRefreshTokenCookie(res, tokens.refreshToken);
+  console.log("refresh  token cookie is done");
 
   sendSuccess(res, HTTP_STATUS.OK, "Login successful", {
     user,
@@ -46,6 +43,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+//refresh
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = getRefreshTokenFromCookie(req);
 
@@ -62,6 +60,7 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+// logout
 export const logout = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError("Authentication required", HTTP_STATUS.UNAUTHORIZED);
@@ -73,6 +72,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, HTTP_STATUS.OK, "Logged out successfully");
 });
 
+// get me
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) {
     throw new AppError("Authentication required", HTTP_STATUS.UNAUTHORIZED);
