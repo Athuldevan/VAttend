@@ -1,13 +1,12 @@
-
 import React, { useState } from "react";
 import { login } from "../../api/auth";
 import { useNavigate } from "react-router-dom";
+import { GraduationCap } from "lucide-react";
 
 export const LoginPage: React.FC = () => {
-
   const navigate = useNavigate();
-  const [email, setEmail] = useState("athuldevan90@gmail.com");
-  const [password, setPassword] = useState("Ams@12345");
+  const [email, setEmail] = useState("richurajesh@gmail.com");
+  const [password, setPassword] = useState("Richu@12345");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -18,18 +17,17 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await login({
+      const { data } = await login({
         email,
         password,
       });
 
-     if(response.success){
-     navigate("/dashboard");
-     }
-
-    
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      console.log("Login response:", data);
+      if (data.user !== null && data.accessToken) {
+        localStorage.setItem("token", data.accessToken);
+        navigate("/teacher/today");
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||
@@ -42,27 +40,24 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-indigo-50/30 px-4 flex items-center justify-center">
-      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-lg shadow-black/5">
-
+    <div className="min-h-screen bg-[#F8FAFC] px-4 flex items-center justify-center">
+      <div className="w-full max-w-md rounded-3xl border border-[#E5E7EB] bg-white p-8 shadow-xl">
         {/* Header */}
-        <div className="mb-6 text-center">
-    
-
-          <h2 className="text-2xl font-bold text-gray-900">
-            Welcome back
-          </h2>
-
-          <p className="mt-2 text-sm text-gray-600">
-            Please sign in to your account
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#4F46E5] text-white shadow-md">
+            <GraduationCap className="h-6 w-6" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Welcome to AMS</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Sign in to access your Teacher Portal
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
-
           {/* Email */}
           <div>
+            <label className="mb-1.5 block text-xs font-semibold text-gray-700">Email Address</label>
             <input
               id="email"
               type="email"
@@ -70,13 +65,14 @@ export const LoginPage: React.FC = () => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email address"
-              className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+              placeholder="e.g. teacher@department.edu"
+              className="w-full rounded-xl border border-[#E5E7EB] px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20"
             />
           </div>
 
           {/* Password */}
           <div>
+            <label className="mb-1.5 block text-xs font-semibold text-gray-700">Password</label>
             <input
               id="password"
               type="password"
@@ -84,8 +80,8 @@ export const LoginPage: React.FC = () => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+              placeholder="••••••••"
+              className="w-full rounded-xl border border-[#E5E7EB] px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20"
             />
           </div>
 
@@ -93,26 +89,23 @@ export const LoginPage: React.FC = () => {
           {error && (
             <div
               role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600"
+              className="rounded-xl border border-[#FECACA] bg-[#FEE2E2] px-4 py-3 text-sm font-medium text-[#DC2626]"
             >
               {error}
             </div>
           )}
 
-          
-
           {/* Submit */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 px-3 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-[#4F46E5] px-4 py-3.5 text-sm font-bold text-white shadow-md transition-all hover:bg-[#4338CA] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-[#4F46E5] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Signing in..." : "Sign in to Portal"}
           </button>
         </form>
-
-        
       </div>
     </div>
   );
 };
+

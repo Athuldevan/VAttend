@@ -6,23 +6,37 @@ export interface LoginPayload {
 }
 
 export interface LoginResponse {
+  data: {
     success: boolean;
-  accessToken: string;
-  user: {
-    id: string;
-    email: string;
-    role: string;
-    departmentId?: string;
+    accessToken: string;
+    user: {
+      id: string;
+      email: string;
+      role: string;
+      departmentId?: string;
+    };
   };
 }
 
-export const login = async (
-  payload: LoginPayload
-): Promise<LoginResponse> => {
+export interface RefreshResponse {
+  success: boolean;
+  message: string;
+  data: {
+    accessToken: string;
+  };
+}
+
+export const login = async (payload: LoginPayload): Promise<LoginResponse> => {
   const response = await axiosClient.post<LoginResponse>(
     "/auth/login",
-    payload
+    payload,
   );
 
   return response.data;
 };
+
+export const refreshTokens = async (): Promise<RefreshResponse> => {
+  const response = await axiosClient.post<RefreshResponse>("/auth/refresh");
+  return response.data;
+};
+
