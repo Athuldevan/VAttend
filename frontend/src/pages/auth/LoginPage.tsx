@@ -8,14 +8,12 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("athuldevan90@gmail.com");
   const [password, setPassword] = useState("Ams@12345");
-  const [rememberMe, setRememberMe] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     setError("");
     setLoading(true);
 
@@ -49,9 +47,7 @@ export const LoginPage: React.FC = () => {
 
         {/* Header */}
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 text-xl font-bold text-indigo-600">
-            A
-          </div>
+    
 
           <h2 className="text-2xl font-bold text-gray-900">
             Welcome back
@@ -103,31 +99,7 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {/* Remember / Forgot */}
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 accent-indigo-600"
-              />
-
-              <span className="text-gray-600">
-                Remember me
-              </span>
-            </label>
-
-            <button
-              type="button"
-              className="font-medium text-indigo-600 transition hover:text-indigo-700"
-              onClick={() => {
-                // TODO: Navigate to forgot password page
-              }}
-            >
-              Forgot password?
-            </button>
-          </div>
+          
 
           {/* Submit */}
           <button
@@ -139,15 +111,7 @@ export const LoginPage: React.FC = () => {
           </button>
         </form>
 
-        {/* Footer */}
-        <div className="mt-6 border-t border-gray-200 pt-4 text-center text-xs text-gray-500">
-          <span>System Status:</span>
-
-          <span className="ml-1 inline-flex items-center gap-1.5 font-medium text-green-600">
-            <span className="h-2 w-2 rounded-full bg-green-600" />
-            Operational
-          </span>
-        </div>
+        
       </div>
     </div>
   );
