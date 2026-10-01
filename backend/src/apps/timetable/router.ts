@@ -41,7 +41,7 @@ router.get("/me", authenticate, authorize(ROLES.TEACHER), getMyTimetable);
 router.post(
   "/",
   authenticate,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(createTimetableSchema),
   createTimetable,
 );
@@ -51,7 +51,7 @@ router.post(
 router.patch(
   "/:id",
   authenticate,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(timetableIdParamSchema),
   validate(updateTimetableSchema),
   updateTimetable,
@@ -62,7 +62,7 @@ router.patch(
 router.delete(
   "/:id",
   authenticate,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(timetableIdParamSchema),
   deleteTimetable,
 );

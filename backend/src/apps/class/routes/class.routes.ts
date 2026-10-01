@@ -45,7 +45,7 @@ router.get(
 router.post(
   "/",
   authenticate,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(createClassSchema),
   createClass,
 );
@@ -55,7 +55,7 @@ router.post(
 router.patch(
   "/:id",
   authenticate,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(classIdParamSchema),
   validate(updateClassSchema),
   updateClass,

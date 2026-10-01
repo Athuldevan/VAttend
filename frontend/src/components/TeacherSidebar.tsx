@@ -7,6 +7,8 @@ import {
   UserCircle,
   LogOut,
   GraduationCap,
+  Building2,
+  BookOpen,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -32,12 +34,22 @@ const navigation = [
     icon: ClipboardCheck,
   },
   {
+    label: "Classes",
+    path: "/teacher/classes",
+    icon: BookOpen,
+  },
+  {
     label: "Leave Requests",
     path: "/teacher/leave",
     icon: FileText,
     badge: 2,
   },
-];
+  {
+    label: "Departments",
+    path: "/teacher/departments",
+    icon: Building2,
+  },
+ ];
 
 export function TeacherSidebar() {
   return (

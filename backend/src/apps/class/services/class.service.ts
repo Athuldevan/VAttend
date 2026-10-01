@@ -1,4 +1,5 @@
 import { Program } from "../../program/program.modal.js";
+import { Department } from "../../department/modal/department.modal.js";
 import { Class } from "../model/class.model.js";
 import { Types } from "mongoose";
 import type {
@@ -8,23 +9,31 @@ import type {
 
 // CREATE
 export async function createClassService(input: CreateClassBody) {
-  // Check program exists
-  const program = await Program.findById(input.programId);
+  const { programId, departmentId, ...classInput } = input;
+  const department = await Department.findById(input.departmentId);
 
-  if (!program) {
-    throw new Error("Program not found");
+  if (!department) {
+    throw new Error("Department not found");
   }
 
-  // Program must belong to department
-  if (program.departmentId.toString() !== input.departmentId) {
-    throw new Error("Program does not belong to the specified department");
-  }
+  if (programId) {
+    const program = await Program.findById(programId);
 
-  // Year cannot exceed program duration
-  if (input.year > program.durationYears) {
-    throw new Error(
-      `Year cannot exceed program duration of ${program.durationYears} years`,
-    );
+    if (!program) {
+      throw new Error("Program not found");
+    }
+
+    // Program must belong to department
+    if (program.departmentId.toString() !== input.departmentId) {
+      throw new Error("Program does not belong to the specified department");
+    }
+
+    // Year cannot exceed program duration
+    if (input.year > program.durationYears) {
+      throw new Error(
+        `Year cannot exceed program duration of ${program.durationYears} years`,
+      );
+    }
   }
 
   // Semester validation
@@ -34,7 +43,10 @@ export async function createClassService(input: CreateClassBody) {
 
   // Duplicate check
   const existingClass = await Class.findOne({
-    programId: new Types.ObjectId(input.programId),
+    departmentId: new Types.ObjectId(input.departmentId),
+    ...(programId
+      ? { programId: new Types.ObjectId(programId) }
+      : { programId: { $exists: false } }),
     year: input.year,
     academicYear: input.academicYear,
   });
@@ -46,9 +58,9 @@ export async function createClassService(input: CreateClassBody) {
   }
 
   const classData = await Class.create({
-    ...input,
-    programId: new Types.ObjectId(input.programId),
-    departmentId: new Types.ObjectId(input.departmentId),
+    ...classInput,
+    departmentId: new Types.ObjectId(departmentId),
+    ...(programId && { programId: new Types.ObjectId(programId) }),
   });
 
   return classData;
@@ -95,7 +107,7 @@ export async function updateClassService(
     throw new Error("Class not found");
   }
 
-  const programId = input.programId ?? classData.programId.toString();
+  const programId = input.programId ?? classData.programId?.toString();
 
   const departmentId = input.departmentId ?? classData.departmentId.toString();
 
@@ -105,23 +117,24 @@ export async function updateClassService(
 
   const currentSemester = input.currentSemester ?? classData.currentSemester;
 
-  // Check program
-  const program = await Program.findById(programId);
+  if (programId) {
+    const program = await Program.findById(programId);
 
-  if (!program) {
-    throw new Error("Program not found");
-  }
+    if (!program) {
+      throw new Error("Program not found");
+    }
 
-  // Program must belong to department
-  if (program.departmentId.toString() !== departmentId) {
-    throw new Error("Program does not belong to the specified department");
-  }
+    // Program must belong to department
+    if (program.departmentId.toString() !== departmentId) {
+      throw new Error("Program does not belong to the specified department");
+    }
 
-  // Year cannot exceed program duration
-  if (year > program.durationYears) {
-    throw new Error(
-      `Year cannot exceed program duration of ${program.durationYears} years`,
-    );
+    // Year cannot exceed program duration
+    if (year > program.durationYears) {
+      throw new Error(
+        `Year cannot exceed program duration of ${program.durationYears} years`,
+      );
+    }
   }
 
   // Semester validation
@@ -131,7 +144,10 @@ export async function updateClassService(
 
   // Check duplicate
   const duplicateClass = await Class.findOne({
-    programId: new Types.ObjectId(programId),
+    departmentId: new Types.ObjectId(departmentId),
+    ...(programId
+      ? { programId: new Types.ObjectId(programId) }
+      : { programId: { $exists: false } }),
     year,
     academicYear,
     _id: {

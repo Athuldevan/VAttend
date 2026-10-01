@@ -10,7 +10,6 @@ import {
   Clock,
   UserCheck,
   Edit2,
-  Sparkles,
 } from "lucide-react";
 
 interface PeriodItem {

@@ -3,6 +3,8 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { TeacherLayout } from "./components/TeacherLayout";
 import { TeacherToday } from "./TeacherToday";
 import { TeacherDashboard } from "./pages/dashboard/TeacherDashboard";
+import { DepartmentsPage } from "./pages/departments/DepartmentsPage";
+import { ClassesPage } from "./pages/classes/ClassesPage";
 
 export default function App() {
   return (
@@ -17,9 +19,10 @@ export default function App() {
           <Route path="today" element={<TeacherToday />} />
           <Route path="dashboard" element={<TeacherDashboard />} />
           <Route path="timetable" element={<TeacherToday />} />
-          <Route path="classes" element={<TeacherToday />} />
+          <Route path="classes" element={<ClassesPage />} />
           <Route path="attendance" element={<TeacherToday />} />
           <Route path="leave" element={<TeacherToday />} />
+          <Route path="departments" element={<DepartmentsPage />} />
           <Route path="profile" element={<TeacherToday />} />
         </Route>
 

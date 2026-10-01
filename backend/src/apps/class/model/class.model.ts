@@ -1,7 +1,7 @@
 import { Schema, Types, model, Document } from 'mongoose';
 
 export interface IClass extends Document {
-  programId: Types.ObjectId;
+  programId?: Types.ObjectId;
   departmentId: Types.ObjectId;
   year: number;
   academicYear: string;
@@ -39,6 +39,9 @@ const classSchema = new Schema<IClass>(
   { timestamps: true }
 );
 
-classSchema.index({ programId: 1, year: 1, academicYear: 1 }, { unique: true });
+classSchema.index(
+  { departmentId: 1, programId: 1, year: 1, academicYear: 1 },
+  { unique: true },
+);
 
 export const Class = model<IClass>('Class', classSchema);
