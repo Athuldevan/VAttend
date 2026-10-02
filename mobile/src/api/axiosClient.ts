@@ -1,9 +1,9 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = 'http://10.0.2.2:4000/api/v1'; // Android emulator → localhost
-// Use 'http://localhost:4000/api/v1' for iOS simulator
-// Use your machine's LAN IP for physical devices
+// Your machine's Wi-Fi LAN IP (for Expo Go on physical devices)
+// Change this if your Wi-Fi network or IP changes.
+const BASE_URL = 'http://10.170.117.82:4000/api/v1';
 
 export const API_BASE_URL = BASE_URL;
 

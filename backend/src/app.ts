@@ -21,8 +21,10 @@ app.use(cookieParser());
 app.use(express.json());
 
 // ── Routes ──────────────────────────────────────────────────────
-app.use("/api", healthRoutes);
+app.use("/api/health", healthRoutes);
 app.use("/api/v1", routes);
+app.use("/api", routes);
+
 
 // ── Root health check ───────────────────────────────────────────
 app.get("/", (_req, res) => {

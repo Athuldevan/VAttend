@@ -32,9 +32,13 @@ export default function LoginScreen() {
     try {
       await login({ email: email.trim(), password });
     } catch (err: any) {
-      const message =
-        err?.response?.data?.message ||
-        'Unable to sign in. Please check your credentials.';
+      console.log('Login error:', err);
+      let message = 'Unable to sign in. Please check your credentials.';
+      if (err?.response?.data?.message) {
+        message = err.response.data.message;
+      } else if (err?.message === 'Network Error' || !err?.response) {
+        message = 'Network error: Cannot reach the backend server. Please verify your phone is on the same Wi-Fi.';
+      }
       setError(message);
     } finally {
       setLoading(false);
@@ -70,7 +74,7 @@ export default function LoginScreen() {
                 <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} />
                 <TextInput
                   style={styles.input}
-                  placeholder="teacher@university.edu"
+                  placeholder="Enter your email"
                   placeholderTextColor={Colors.textTertiary}
                   keyboardType="email-address"
                   autoCapitalize="none"
