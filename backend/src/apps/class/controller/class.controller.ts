@@ -5,11 +5,11 @@ import type {
 
 import {
   sendSuccess,
-} from "../../../shared/utils/apiResponse.js";
+} from "../../../../utils/apiResponse.js";
 
 import {
   HTTP_STATUS,
-} from "../../../shared/errors/errorCodes.js";
+} from "../../../../utils/errorCodes.js";
 
 import {
   createClassService,

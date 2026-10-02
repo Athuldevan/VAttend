@@ -7,7 +7,7 @@ import {
   deleteTimetable,
 } from "./controller/timeTable.controller.js";
 
-import { ROLES } from "../../../shared/constants/roles.js";
+import { ROLES } from "../../../constants/roles.js";
 
 import {
   createTimetableSchema,

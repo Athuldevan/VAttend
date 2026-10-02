@@ -3,8 +3,8 @@ import "../config/env.js";
 import { connectDB } from "../config/db.js";
 import { Department } from "../apps/department/modal/department.modal.js";
 import User from "../apps/user/user.model.js";
-import { ROLES } from "../../shared/constants/roles.js";
-import { hashPassword } from "../shared/utils/password.js";
+import { ROLES } from "../../constants/roles.js";
+import { hashPassword } from "../../utils/password.js";
 
 const ADMIN_EMAIL = "admin@gmail.com";
 const ADMIN_PASSWORD = "Admin@12345";

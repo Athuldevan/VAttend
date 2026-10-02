@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import type { ZodSchema, ZodIssue } from "zod";
 import { ZodError } from "zod";
-import { HTTP_STATUS } from "../shared/errors/errorCodes.js";
-import { sendError } from "../shared/utils/apiResponse.js";
+import { HTTP_STATUS } from "../../utils/errorCodes.js";
+import { sendError } from "../../utils/apiResponse.js";
 
 /**
  * Returns Express middleware that validates `req.body` against the given Zod schema.

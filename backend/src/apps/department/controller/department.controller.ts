@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 
-import { sendSuccess } from "../../../shared/utils/apiResponse.js";
-import { HTTP_STATUS } from "../../../shared/errors/errorCodes.js";
+import { sendSuccess } from "../../../../utils/apiResponse.js";
+import { HTTP_STATUS } from "../../../../utils/errorCodes.js";
 
 import {
   createDepartmentService,

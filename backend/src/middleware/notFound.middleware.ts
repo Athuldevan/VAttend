@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
-import { HTTP_STATUS } from "../shared/errors/errorCodes.js";
-import { sendError } from "../shared/utils/apiResponse.js";
+import { HTTP_STATUS } from "../../utils/errorCodes.js";
+import { sendError } from "../../utils/apiResponse.js";
 
 /**
  * Catch-all 404 handler for routes that don't match any registered endpoint.

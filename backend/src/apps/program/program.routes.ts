@@ -10,7 +10,7 @@ import {
 
 
 
-import { ROLES } from "../../../shared/constants/roles.js";
+import { ROLES } from "../../../constants/roles.js";
 
 import {
   createProgramSchema,

@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type { Role } from "../shared/constants/roles.js";
-import { AppError } from "../shared/errors/AppError.js";
-import { HTTP_STATUS } from "../shared/errors/errorCodes.js";
+import { AppError } from "../../utils/AppError.js";
+import { HTTP_STATUS } from "../../utils/errorCodes.js";
 
 /**
  * Role-based authorization middleware factory.

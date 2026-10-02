@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
-import { AppError } from "../shared/errors/AppError.js";
-import { HTTP_STATUS } from "../shared/errors/errorCodes.js";
-import { sendError } from "../shared/utils/apiResponse.js";
+import { AppError } from "../../utils/AppError.js";
+import { HTTP_STATUS } from "../../utils/errorCodes.js";
+import { sendError } from "../../utils/apiResponse.js";
 import { env } from "../config/env.js";
 
 /**

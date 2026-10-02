@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ROLES, PUBLIC_REGISTRABLE_ROLES } from "../../../shared/constants/roles.js";
+import { ROLES, PUBLIC_REGISTRABLE_ROLES } from "../../../constants/roles.js";
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 

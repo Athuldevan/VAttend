@@ -1,13 +1,13 @@
 import type { Request, Response } from "express";
-import { asyncHandler } from "../../../shared/utils/asyncHandler.js";
-import { sendSuccess } from "../../../shared/utils/apiResponse.js";
-import { HTTP_STATUS } from "../../../shared/errors/errorCodes.js";
-import { AppError } from "../../../shared/errors/AppError.js";
+import { asyncHandler } from "../../../../utils/asyncHandler.js";
+import { sendSuccess } from "../../../../utils/apiResponse.js";
+import { HTTP_STATUS } from "../../../../utils/errorCodes.js";
+import { AppError } from "../../../../utils/AppError.js";
 import {
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
   getRefreshTokenFromCookie,
-} from "../../../shared/utils/refreshTokenCookie.js";
+} from "../../../../utils/refreshTokenCookie.js";
 import * as authService from "../service/auth.service.js";
 import type { RegisterBody, LoginBody } from "../auth.validation.js";
 

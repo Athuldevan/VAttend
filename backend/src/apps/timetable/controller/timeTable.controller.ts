@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import * as timetableService from "../services/timeTable.Service.js";
-import { AppError } from "../../../shared/errors/AppError.js";
+import { AppError } from "../../../../utils/AppError.js";
 import type { Types } from "mongoose";
 import type { TimetableIdParams } from "../types/timeTable.Types.js";
 

@@ -1,5 +1,5 @@
 import type { Types } from "mongoose";
-import type { Role } from "../../../shared/constants/roles.js";
+import type { Role } from "../../../constants/roles.js";
 
 export interface RegisterInput {
   name: string;

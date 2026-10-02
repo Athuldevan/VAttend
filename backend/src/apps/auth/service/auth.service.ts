@@ -2,19 +2,19 @@ import User from "../../user/user.model.js";
 import type { IUserDocument, SafeUser } from "../../user/user.types.js";
 import type { RegisterInput, LoginInput, AuthTokens } from "../auth.types.js";
 import type { AuthUser } from "../../../shared/types/common.types.js";
-import { AppError } from "../../../shared/errors/AppError.js";
-import { HTTP_STATUS } from "../../../shared/errors/errorCodes.js";
+import { AppError } from "../../../../utils/AppError.js";
+import { HTTP_STATUS } from "../../../../utils/errorCodes.js";
 import {
   hashPassword,
   comparePassword,
   hashRefreshToken,
   compareRefreshToken,
-} from "../../../shared/utils/password.js";
+} from "../../../../utils/password.js";
 import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
-} from "../../../shared/utils/jwt.js";
+} from "../../../../utils/jwt.js";
 
 
 function buildJwtPayload(user: IUserDocument): AuthUser {

@@ -13,8 +13,8 @@ import type {
   UpdateProgramBody,
   ProgramIdParams,
 } from "./program.validation.js";
-import { sendSuccess } from "../../shared/utils/apiResponse.js";
-import { HTTP_STATUS } from "../../shared/errors/errorCodes.js";
+import { sendSuccess } from "../../../utils/apiResponse.js";
+import { HTTP_STATUS } from "../../../utils/errorCodes.js";
 
 // CREATE
 export const createProgram = async (
