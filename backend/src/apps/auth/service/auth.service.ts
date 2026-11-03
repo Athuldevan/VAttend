@@ -1,4 +1,5 @@
 import User from "../../user/user.model.js";
+import { Department } from "../../department/modal/department.modal.js";
 import type { IUserDocument, SafeUser } from "../../user/user.types.js";
 import type { RegisterInput, LoginInput, AuthTokens } from "../auth.types.js";
 import type { AuthUser } from "../../../shared/types/common.types.js";
@@ -44,6 +45,44 @@ export async function createUser(input: RegisterInput) {
   await newUser.save();
 
   return { user: newUser, tokens };
+}
+
+export async function createUserWithDepartment(
+  input: Omit<RegisterInput, "departmentId"> & {
+    department: { name: string; code: string };
+  },
+) {
+  const existingDepartment = await Department.findOne({
+    code: input.department.code,
+    isDeleted: false,
+  });
+
+  if (existingDepartment) {
+    throw new AppError("Department code is already in use", HTTP_STATUS.CONFLICT);
+  }
+
+  const department = await Department.create(input.department);
+
+  try {
+    return await createUser({
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      role: input.role,
+      departmentId: department._id.toString(),
+    });
+  } catch (error) {
+    await department.deleteOne();
+    throw error;
+  }
+}
+
+export async function setTeacherPassword(input: { email: string; password: string }) {
+  const user = await User.findOne({ email: input.email, role: "TEACHER", isActive: false });
+  if (!user) throw new AppError("No pending teacher account was found for this email", HTTP_STATUS.BAD_REQUEST);
+  user.password = await hashPassword(input.password);
+  user.isActive = true;
+  await user.save();
 }
 
 export async function login(input: LoginInput) {

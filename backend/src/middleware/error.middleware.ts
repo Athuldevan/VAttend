@@ -33,6 +33,7 @@ export const errorHandler = (
       res,
       HTTP_STATUS.CONFLICT,
       `An account with this ${field} already exists`,
+      [{ field, message: `This ${field} is already in use` }],
     );
     return;
   }
@@ -42,14 +43,20 @@ export const errorHandler = (
     const mongooseErr = err as unknown as {
       errors: Record<string, { message: string }>;
     };
-    const messages = Object.values(mongooseErr.errors).map((e) => e.message);
-    sendError(res, HTTP_STATUS.BAD_REQUEST, messages.join(". "));
+    const errors = Object.entries(mongooseErr.errors).map(([field, error]) => ({
+      field,
+      message: error.message,
+    }));
+    sendError(res, HTTP_STATUS.BAD_REQUEST, "Validation failed", errors);
     return;
   }
 
   // ── Mongoose CastError (invalid ObjectId etc.) ────────────────
   if (err.name === "CastError") {
-    sendError(res, HTTP_STATUS.BAD_REQUEST, "Invalid resource identifier");
+    const castError = err as unknown as { path?: string };
+    sendError(res, HTTP_STATUS.BAD_REQUEST, "Invalid resource identifier", [
+      { field: castError.path ?? "id", message: "Invalid value" },
+    ]);
     return;
   }
 

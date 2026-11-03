@@ -1,9 +1,18 @@
 import { Types } from "mongoose";
 import TimeTable from "../model/timeTableSchema.js";
+import Subject from "../../subject/model/subject.model.js";
+import User from "../../user/user.model.js";
+import { ROLES } from "../../../shared/constants/roles.js";
 import { checkTimetableClash } from "../helper/checkTimeTableClash.js";
 import type { CreateTimetableInput, UpdateTimetableInput } from "../types/timeTable.Types.js";
 
 export const createTimetable = async (data: CreateTimetableInput) => {
+  if (!data.department) {
+    throw new Error("Department is required.");
+  }
+
+  await validateTimetableReferences(data.teacher, data.subject, data.department);
+
   await checkTimetableClash(
     data.class,
     data.teacher,
@@ -50,6 +59,14 @@ export const updateTimetable = async (
 
   const period = data.period ?? timetable.period;
 
+  if (data.teacher !== undefined || data.subject !== undefined) {
+    await validateTimetableReferences(
+      teacherId,
+      data.subject ?? timetable.subject.toString(),
+      departmentId,
+    );
+  }
+
   await checkTimetableClash(classId, teacherId, dayOfWeek, period, timetableId);
 
   if (data.class !== undefined) {
@@ -87,6 +104,28 @@ export const updateTimetable = async (
   await timetable.save();
 
   return timetable;
+};
+
+const validateTimetableReferences = async (
+  teacherId: string,
+  subjectId: string,
+  departmentId: string,
+) => {
+  const [teacher, subject] = await Promise.all([
+    User.exists({
+      _id: new Types.ObjectId(teacherId),
+      departmentId: new Types.ObjectId(departmentId),
+      role: ROLES.TEACHER,
+      isActive: true,
+    }),
+    Subject.exists({
+      _id: new Types.ObjectId(subjectId),
+      departmentId: new Types.ObjectId(departmentId),
+    }),
+  ]);
+
+  if (!teacher) throw new Error("Selected teacher is not available in this department.");
+  if (!subject) throw new Error("Selected subject is not available in this department.");
 };
 
 
@@ -136,9 +175,12 @@ export const getClassTimetable = async (
   }
 
   const timetable = await TimeTable.find(query)
-    .populate("class")
+    .populate({
+      path: "class",
+      populate: { path: "programId" },
+    })
     .populate("subject")
-    .populate("teacher")
+    .populate("teacher", "name email")
     .sort({
       dayOfWeek: 1,
       period: 1,
@@ -153,9 +195,12 @@ export const getMyTimetable = async (teacherId: string) => {
     teacher: new Types.ObjectId(teacherId),
     isDeleted: false,
   })
-    .populate("class")
+    .populate({
+      path: "class",
+      populate: { path: "programId" },
+    })
     .populate("subject")
-    .populate("department")
+    .populate("department", "name code")
     .sort({
       dayOfWeek: 1,
       period: 1,

@@ -61,6 +61,8 @@ const userSchema = new Schema<IUserDocument>(
       type: String,
       select: false,
     },
+    passwordSetupCodeHash: { type: String, select: false },
+    passwordSetupExpiresAt: { type: Date, select: false },
   },
   {
     timestamps: true,

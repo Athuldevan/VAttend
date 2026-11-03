@@ -2,14 +2,23 @@ import { axiosClient } from './axiosClient';
 
 export interface TimetableSlot {
   id: string;
-  class: string | { id?: string; _id?: string; academicYear?: string; year?: number; currentSemester?: number };
+  class:
+    | string
+    | {
+        id?: string;
+        _id?: string;
+        academicYear?: string;
+        year?: number;
+        currentSemester?: number;
+        programId?: string | { _id?: string; name?: string; level?: string };
+      };
   semester: number;
   subject: string | { id?: string; _id?: string; name?: string; code?: string };
   teacher: string | { id?: string; _id?: string; name?: string; email?: string };
   dayOfWeek: number; // 0=Sunday, 1=Monday ... 5=Friday
   period: number;
   startTime: string; // HH:mm
-  endTime: string;   // HH:mm
+  endTime: string; // HH:mm
   department: string | { id?: string; _id?: string; name?: string; code?: string };
   createdAt?: string;
   updatedAt?: string;
@@ -24,7 +33,7 @@ export interface CreateTimetablePayload {
   period: number;
   startTime: string;
   endTime: string;
-  department: string;
+  department?: string;
 }
 
 export type UpdateTimetablePayload = Partial<CreateTimetablePayload>;

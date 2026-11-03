@@ -46,7 +46,7 @@ router.get(
 router.post(
   "/",
   authenticate,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(createProgramSchema),
   createProgram,
 );
@@ -56,7 +56,7 @@ router.post(
 router.patch(
   "/:id",
   authenticate,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(programIdParamSchema),
   validate(updateProgramSchema),
   updateProgram,
@@ -67,7 +67,7 @@ router.patch(
 router.delete(
   "/:id",
   authenticate,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(programIdParamSchema),
   deleteProgram,
 );

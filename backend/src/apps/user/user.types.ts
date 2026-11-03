@@ -12,6 +12,8 @@ export interface IUser {
   rollNumber? : number;
   class? : Types.ObjectId;
   refreshTokenHash?: string | undefined;
+  passwordSetupCodeHash?: string | undefined;
+  passwordSetupExpiresAt?: Date | undefined;
   createdAt: Date;
   updatedAt: Date;
 }

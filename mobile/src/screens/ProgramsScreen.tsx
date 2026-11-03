@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, FontSize, FontWeight } from '../constants/theme';
+import { Colors, Spacing, Radius, FontSize, FontWeight, Fonts } from '../constants/theme';
 import {
   getPrograms,
   createProgram,
@@ -483,12 +483,12 @@ const styles = StyleSheet.create({
   },
   filterPillText: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
   },
   filterPillTextActive: {
-    color: Colors.textInverse,
-    fontWeight: FontWeight.bold,
+    color: Colors.text,
+    fontFamily: Fonts.bold,
   },
   listContent: {
     padding: Spacing.lg,
@@ -502,6 +502,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: Spacing.sm,
     fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
   },
   emptyCard: {
@@ -515,121 +516,43 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: FontSize.base,
-    fontWeight: FontWeight.bold,
+    fontFamily: Fonts.bold,
     color: Colors.text,
     marginTop: Spacing.md,
   },
   emptySubtext: {
     fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: Spacing.xs,
   },
-  programCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  cardTitleBlock: {
-    flex: 1,
-    marginRight: Spacing.sm,
-  },
-  levelBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
-    marginBottom: Spacing.xs,
-  },
-  ugBadge: {
-    backgroundColor: Colors.infoBg,
-  },
-  pgBadge: {
-    backgroundColor: Colors.primaryBg,
-  },
-  levelText: {
-    fontSize: FontSize.xs - 1,
-    fontWeight: FontWeight.bold,
-  },
-  ugText: {
-    color: Colors.info,
-  },
-  pgText: {
-    color: Colors.primary,
-  },
-  progName: {
-    fontSize: FontSize.base,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
-  },
-  cardActionBtn: {
-    padding: Spacing.xs,
-  },
-  cardMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.lg,
-    marginTop: Spacing.sm,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
   metaText: {
     fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    padding: Spacing.xl,
-    maxHeight: '85%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
   },
   modalTitle: {
     fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
+    fontFamily: Fonts.bold,
     color: Colors.text,
   },
   modalLabel: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
+    fontFamily: Fonts.semibold,
     color: Colors.textSecondary,
     marginBottom: Spacing.xs,
     marginTop: Spacing.md,
     textTransform: 'uppercase',
   },
-  deptChoiceList: {
-    flexDirection: 'row',
-    marginBottom: Spacing.xs,
-  },
   deptChoiceChip: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     borderWidth: 1,
     borderColor: Colors.border,
     marginRight: Spacing.xs,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.backgroundAlt,
   },
   deptChoiceChipActive: {
     backgroundColor: Colors.primary,
@@ -637,64 +560,45 @@ const styles = StyleSheet.create({
   },
   deptChoiceText: {
     fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
   },
   deptChoiceTextActive: {
-    color: Colors.textInverse,
-    fontWeight: FontWeight.bold,
+    color: Colors.text,
+    fontFamily: Fonts.bold,
   },
   modalInput: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
     borderRadius: Radius.md,
     padding: Spacing.md,
     fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
     color: Colors.text,
-    backgroundColor: Colors.background,
-  },
-  levelSegment: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    overflow: 'hidden',
+    backgroundColor: Colors.backgroundAlt,
   },
   levelOption: {
     flex: 1,
     paddingVertical: Spacing.md,
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.backgroundAlt,
   },
   levelOptionActive: {
     backgroundColor: Colors.primary,
   },
   levelOptionText: {
     fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
-    fontWeight: FontWeight.medium,
   },
   levelOptionTextActive: {
-    color: Colors.textInverse,
-    fontWeight: FontWeight.bold,
-  },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.errorBg,
-    padding: Spacing.md,
-    borderRadius: Radius.md,
-    marginTop: Spacing.md,
-  },
-  errorText: {
-    fontSize: FontSize.xs,
-    color: Colors.error,
-    flex: 1,
+    color: Colors.text,
+    fontFamily: Fonts.bold,
   },
   saveBtn: {
     backgroundColor: Colors.primary,
     paddingVertical: Spacing.lg,
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     alignItems: 'center',
     marginTop: Spacing.xl,
     marginBottom: Spacing.xl,
@@ -703,8 +607,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   saveBtnText: {
-    color: Colors.textInverse,
-    fontWeight: FontWeight.bold,
+    color: Colors.text,
+    fontFamily: Fonts.bold,
     fontSize: FontSize.base,
   },
 });
+

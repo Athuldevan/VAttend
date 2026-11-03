@@ -34,7 +34,7 @@ router.get(
 
 // GET /api/v1/timetable/me
 
-router.get("/me", authenticate, authorize(ROLES.TEACHER), getMyTimetable);
+router.get("/me", authenticate, authorize(ROLES.TEACHER, ROLES.ADMIN), getMyTimetable);
 
 // POST /api/v1/timetable
 

@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 // Your machine's Wi-Fi LAN IP (for Expo Go on physical devices)
 // Change this if your Wi-Fi network or IP changes.
-const BASE_URL = 'http://10.170.117.82:4000/api/v1';
+const BASE_URL = 'http://10.55.171.82:4000/api/v1';
 
 export const API_BASE_URL = BASE_URL;
 
@@ -14,6 +14,11 @@ export const axiosClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+export let onUnauthorizedCallback: (() => void) | null = null;
+export const setOnUnauthorized = (cb: () => void) => {
+  onUnauthorizedCallback = cb;
+};
 
 // ─── Token helpers ──────────────────────────────────────
 export const TOKEN_KEY = 'ams_access_token';
@@ -39,13 +44,17 @@ export async function clearTokens(): Promise<void> {
 // ─── Request interceptor ─────────────────────────────────
 axiosClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    console.log(`[Mobile API] Outgoing -> ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     const token = await getStoredToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.log('[Mobile API] Request Config Error:', error);
+    return Promise.reject(error);
+  }
 );
 
 // ─── Response interceptor — auto-refresh on 401 ─────────
@@ -64,8 +73,18 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 axiosClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`[Mobile API] Success <- ${response.status} ${response.config.url}`);
+    return response;
+  },
   async (error: AxiosError) => {
+    console.log(
+      `[Mobile API] Error <- ${error.config?.url}:`,
+      error.message,
+      error.code,
+      error.response?.status,
+      error.response?.data,
+    );
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     if (

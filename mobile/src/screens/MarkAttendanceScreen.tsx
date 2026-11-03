@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,12 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, FontSize, FontWeight } from '../constants/theme';
+import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
+import { getSlotAttendance, markAttendance } from '../api/attendance';
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
 
@@ -48,6 +49,8 @@ interface Props {
         room: string;
         startTime: string;
         endTime: string;
+        timetableSlotId?: string;
+        classId?: string;
       };
     };
   };
@@ -64,10 +67,44 @@ export default function MarkAttendanceScreen({ route, navigation }: Props) {
     endTime: '11:00 AM',
   };
 
+  const timetableSlotId = period.timetableSlotId;
+  const todayYMD = new Date().toISOString().split('T')[0];
+
   const [students, setStudents] = useState<StudentRecord[]>(initialStudents);
+  const [loading, setLoading] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (timetableSlotId && !timetableSlotId.startsWith('slot-mock')) {
+      setLoading(true);
+      getSlotAttendance(timetableSlotId, todayYMD)
+        .then((res) => {
+          if (res.data?.isMarked && res.data.records?.length > 0) {
+            const mapped: StudentRecord[] = res.data.records.map((r: any, idx: number) => ({
+              id: r.studentId?._id || r.studentId?.id || r.studentId || String(idx),
+              rollNumber: String(r.studentId?.rollNumber ?? idx + 1).padStart(2, '0'),
+              name: r.studentId?.name || `Student ${idx + 1}`,
+              status: (r.status === 'half_day' || r.status === 'late' ? 'late' : r.status) as AttendanceStatus,
+            }));
+            setStudents(mapped);
+          } else if (res.data?.enrolledStudents?.length > 0) {
+            const mapped: StudentRecord[] = res.data.enrolledStudents.map((s: any, idx: number) => ({
+              id: s._id || s.id || String(idx),
+              rollNumber: String(s.rollNumber ?? idx + 1).padStart(2, '0'),
+              name: s.name || `Student ${idx + 1}`,
+              status: 'present' as AttendanceStatus,
+            }));
+            setStudents(mapped);
+          }
+        })
+        .catch(() => {
+          // Keep default mock students if offline or error
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [timetableSlotId, todayYMD]);
 
   const presentCount = students.filter((s) => s.status === 'present').length;
   const absentCount = students.filter((s) => s.status === 'absent').length;
@@ -84,10 +121,20 @@ export default function MarkAttendanceScreen({ route, navigation }: Props) {
     setStudents((prev) => prev.map((s) => ({ ...s, status })));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
+    try {
+      if (timetableSlotId && !timetableSlotId.startsWith('slot-mock')) {
+        const recordsPayload = students.map((s) => ({
+          studentId: s.id,
+          status: (s.status === 'late' ? 'half_day' : s.status) as any,
+        }));
+        await markAttendance({
+          timetableSlotId,
+          date: todayYMD,
+          records: recordsPayload,
+        });
+      }
       Alert.alert(
         'Attendance Recorded',
         `Successfully marked attendance for Period ${period.periodNumber}: ${presentCount} Present, ${absentCount} Absent, ${lateCount} Late.`,
@@ -102,7 +149,12 @@ export default function MarkAttendanceScreen({ route, navigation }: Props) {
           },
         ]
       );
-    }, 800);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to submit attendance.';
+      Alert.alert('Error', msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredStudents = students.filter(
@@ -207,6 +259,14 @@ export default function MarkAttendanceScreen({ route, navigation }: Props) {
           contentContainerStyle={styles.studentListContent}
           showsVerticalScrollIndicator={false}
         >
+          {loading && (
+            <View style={{ paddingVertical: Spacing.lg, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+              <Text style={{ fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 4 }}>
+                Loading attendance & students...
+              </Text>
+            </View>
+          )}
           {filteredStudents.map((student) => {
             const isPresent = student.status === 'present';
             const isAbsent = student.status === 'absent';
@@ -343,22 +403,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.full,
+    backgroundColor: Colors.backgroundAlt,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   headerTitleContainer: {
     alignItems: 'center',
   },
   headerTitle: {
     fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
+    fontFamily: Fonts.bold,
     color: Colors.text,
   },
   headerSubtitle: {
     fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
     marginTop: 2,
   },
@@ -367,9 +431,14 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     marginHorizontal: Spacing.lg,
     marginTop: Spacing.md,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Colors.border,
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   periodHeaderRow: {
     flexDirection: 'row',
@@ -378,26 +447,27 @@ const styles = StyleSheet.create({
   },
   periodSubject: {
     fontSize: FontSize.base,
-    fontWeight: FontWeight.bold,
+    fontFamily: Fonts.bold,
     color: Colors.text,
     flex: 1,
   },
   roomBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primaryBg,
-    paddingHorizontal: Spacing.sm,
+    backgroundColor: Colors.primaryMuted,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.full,
     gap: 4,
   },
   roomText: {
     fontSize: FontSize.xs,
-    color: Colors.primary,
-    fontWeight: FontWeight.medium,
+    fontFamily: Fonts.semibold,
+    color: Colors.primaryDark,
   },
   periodClass: {
     fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
     marginTop: 4,
   },
@@ -410,19 +480,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.borderLight,
   },
   statChipLabel: {
     fontSize: FontSize.xs - 1,
+    fontFamily: Fonts.semibold,
     color: Colors.textSecondary,
-    fontWeight: FontWeight.medium,
     textTransform: 'uppercase',
   },
   statChipVal: {
     fontSize: FontSize.base,
-    fontWeight: FontWeight.bold,
+    fontFamily: Fonts.extrabold,
     color: Colors.text,
     marginTop: 2,
   },
@@ -436,7 +506,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Platform.OS === 'ios' ? Spacing.sm : 2,
@@ -445,6 +515,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
     color: Colors.text,
   },
   quickMarkGroup: {
@@ -459,12 +530,12 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: Spacing.sm,
     backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     borderWidth: 1,
   },
   quickMarkText: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
+    fontFamily: Fonts.semibold,
   },
   studentList: {
     flex: 1,
@@ -481,10 +552,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.border,
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   studentInfo: {
     flexDirection: 'row',
@@ -493,30 +569,28 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
   },
   rollCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.background,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.primaryMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
   rollText: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
-    color: Colors.textSecondary,
+    fontFamily: Fonts.bold,
+    color: Colors.primaryDark,
   },
   studentName: {
     fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
+    fontFamily: Fonts.semibold,
     color: Colors.text,
     flex: 1,
   },
   toggleGroup: {
     flexDirection: 'row',
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.backgroundAlt,
     borderRadius: Radius.md,
     padding: 3,
     gap: 3,
@@ -530,7 +604,7 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
+    fontFamily: Fonts.bold,
     color: Colors.textSecondary,
   },
   togglePresentActive: {
@@ -548,29 +622,30 @@ const styles = StyleSheet.create({
   remarksSection: {
     backgroundColor: Colors.surface,
     padding: Spacing.lg,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Colors.border,
     marginTop: Spacing.md,
   },
   remarksLabel: {
     fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
+    fontFamily: Fonts.semibold,
     color: Colors.textSecondary,
     marginBottom: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   remarksInput: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
     borderRadius: Radius.md,
     padding: Spacing.md,
     fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
     color: Colors.text,
     minHeight: 60,
     textAlignVertical: 'top',
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.backgroundAlt,
   },
   bottomBar: {
     position: 'absolute',
@@ -589,15 +664,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.primary,
     paddingVertical: Spacing.lg,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.full,
     gap: Spacing.sm,
+    shadowColor: Colors.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   saveButtonText: {
     fontSize: FontSize.base,
-    fontWeight: FontWeight.bold,
-    color: Colors.textInverse,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
   },
 });
+

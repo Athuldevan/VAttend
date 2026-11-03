@@ -4,22 +4,23 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Platform,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, FontSize, FontWeight } from '../constants/theme';
+import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import TodayScreen from '../screens/TodayScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import ClassesScreen from '../screens/ClassesScreen';
-import ProgramsScreen from '../screens/ProgramsScreen';
 import DepartmentsScreen from '../screens/DepartmentsScreen';
 import MarkAttendanceScreen from '../screens/MarkAttendanceScreen';
+import TeachersScreen from '../screens/TeachersScreen';
+import SubjectsScreen from '../screens/SubjectsScreen';
 
-export type TabKey = 'today' | 'dashboard' | 'classes' | 'programs' | 'departments';
+export type TabKey = 'today' | 'dashboard' | 'classes' | 'departments' | 'teachers' | 'subjects';
 
 interface ModalState {
   type: 'mark-attendance';
@@ -72,10 +73,12 @@ export default function MainNavigator() {
         return <DashboardScreen />;
       case 'classes':
         return <ClassesScreen />;
-      case 'programs':
-        return <ProgramsScreen />;
       case 'departments':
         return <DepartmentsScreen />;
+      case 'teachers':
+        return <TeachersScreen />;
+      case 'subjects':
+        return <SubjectsScreen />;
       default:
         return <TodayScreen />;
     }
@@ -86,13 +89,18 @@ export default function MainNavigator() {
     label: string;
     icon: keyof typeof Ionicons.glyphMap;
     activeIcon: keyof typeof Ionicons.glyphMap;
+    accentColor: string;
+    accentBg: string;
   }> = [
-    { key: 'today', label: 'Today', icon: 'calendar-outline', activeIcon: 'calendar' },
-    { key: 'dashboard', label: 'Overview', icon: 'pie-chart-outline', activeIcon: 'pie-chart' },
-    { key: 'classes', label: 'Classes', icon: 'people-outline', activeIcon: 'people' },
-    { key: 'programs', label: 'Programs', icon: 'school-outline', activeIcon: 'school' },
-    { key: 'departments', label: 'Dept', icon: 'business-outline', activeIcon: 'business' },
+    { key: 'today', label: 'Today', icon: 'calendar-outline', activeIcon: 'calendar', accentColor: Colors.primary, accentBg: Colors.primaryMuted },
+    { key: 'dashboard', label: 'Overview', icon: 'pie-chart-outline', activeIcon: 'pie-chart', accentColor: Colors.blue, accentBg: Colors.blueBg },
+    { key: 'classes', label: 'Classes', icon: 'people-outline', activeIcon: 'people', accentColor: Colors.salmon, accentBg: Colors.salmonBg },
+    { key: 'subjects', label: 'Subjects', icon: 'book-outline', activeIcon: 'book', accentColor: Colors.purple, accentBg: Colors.purpleBg },
+    { key: 'departments', label: 'Dept', icon: 'business-outline', activeIcon: 'business', accentColor: Colors.success, accentBg: Colors.greenBg },
+    ...(user?.role === 'ADMIN' ? [{ key: 'teachers' as TabKey, label: 'Teachers', icon: 'person-add-outline' as keyof typeof Ionicons.glyphMap, activeIcon: 'person-add' as keyof typeof Ionicons.glyphMap, accentColor: Colors.primaryDark, accentBg: Colors.primaryBg }] : []),
   ];
+
+  const activeTabInfo = tabs.find(t => t.key === activeTab);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -101,13 +109,13 @@ export default function MainNavigator() {
       {/* Top App Header */}
       <View style={styles.topHeader}>
         <View style={styles.brandRow}>
-          <View style={styles.brandBadge}>
-            <Ionicons name="school" size={16} color={Colors.textInverse} />
+          <View style={[styles.brandBadge, { backgroundColor: activeTabInfo?.accentColor || Colors.primary }]}>
+            <Ionicons name="school" size={15} color="#fff" />
           </View>
           <View>
             <Text style={styles.brandTitle}>AMS Portal</Text>
             <Text style={styles.brandRole}>
-              {user?.role ? user.role.toUpperCase() : 'FACULTY'} · {user?.email || 'Logged in'}
+              {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Faculty'} · {user?.name || user?.email || 'Logged in'}
             </Text>
           </View>
         </View>
@@ -124,30 +132,32 @@ export default function MainNavigator() {
       {/* Main Body */}
       <View style={styles.screenContainer}>{renderScreen()}</View>
 
-      {/* Minimal Curved Bottom Navigation Bar */}
-      <View style={styles.tabBar}>
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={styles.tabItem}
-              onPress={() => setActiveTab(tab.key)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.tabIconWrapper, isActive && styles.tabIconActive]}>
-                <Ionicons
-                  name={isActive ? tab.activeIcon : tab.icon}
-                  size={20}
-                  color={isActive ? Colors.primary : Colors.textTertiary}
-                />
-              </View>
-              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Floating Rounded Bottom Navigation Bar */}
+      <View style={styles.tabBarWrapper}>
+        <View style={styles.tabBar}>
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={styles.tabItem}
+                onPress={() => setActiveTab(tab.key)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.tabIconWrapper, isActive && { backgroundColor: tab.accentBg }]}>
+                  <Ionicons
+                    name={isActive ? tab.activeIcon : tab.icon}
+                    size={21}
+                    color={isActive ? tab.accentColor : Colors.textTertiary}
+                  />
+                </View>
+                <Text style={[styles.tabLabel, isActive && { color: tab.accentColor, fontFamily: Fonts.bold }]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -167,6 +177,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   brandRow: {
     flexDirection: 'row',
@@ -175,67 +190,75 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   brandBadge: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: Radius.md,
-    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   brandTitle: {
     fontSize: FontSize.base,
-    fontWeight: FontWeight.bold,
+    fontFamily: Fonts.bold,
     color: Colors.text,
     letterSpacing: 0.3,
   },
   brandRole: {
-    fontSize: FontSize.xs - 1,
+    fontSize: 11,
+    fontFamily: Fonts.medium,
     color: Colors.textSecondary,
     marginTop: 1,
   },
   logoutBtn: {
-    padding: Spacing.xs,
+    width: 36,
+    height: 36,
     borderRadius: Radius.full,
+    backgroundColor: Colors.backgroundAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   screenContainer: {
     flex: 1,
   },
+  tabBarWrapper: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.lg : Spacing.md,
+    paddingTop: Spacing.xs,
+    backgroundColor: Colors.background,
+  },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: Spacing.xs,
-    paddingBottom: Platform.OS === 'ios' ? Spacing.sm : Spacing.xs,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderRadius: Radius['2xl'],
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: Spacing.xs,
   },
   tabIconWrapper: {
-    width: 36,
-    height: 28,
+    width: 40,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.md,
-  },
-  tabIconActive: {
-    backgroundColor: Colors.primaryBg,
+    borderRadius: Radius.lg,
+    marginBottom: 2,
   },
   tabLabel: {
-    fontSize: FontSize.xs - 1,
+    fontSize: 10,
+    fontFamily: Fonts.medium,
     color: Colors.textTertiary,
-    marginTop: 2,
-    fontWeight: FontWeight.medium,
-  },
-  tabLabelActive: {
-    color: Colors.primary,
-    fontWeight: FontWeight.bold,
+    marginTop: 1,
+    letterSpacing: 0.2,
   },
 });

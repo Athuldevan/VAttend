@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { login as apiLogin, logout as apiLogout, getStoredUser, type User, type LoginPayload } from '../api/auth';
+import { login as apiLogin, register as apiRegister, registerWithDepartment as apiRegisterWithDepartment, logout as apiLogout, getStoredUser, type User, type LoginPayload, type RegisterPayload, type RegisterWithDepartmentPayload } from '../api/auth';
 import { getStoredToken } from '../api/axiosClient';
 
 interface AuthState {
@@ -10,6 +10,8 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (payload: LoginPayload) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
+  registerWithDepartment: (payload: RegisterWithDepartmentPayload) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -52,8 +54,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({ user: null, isAuthenticated: false, isLoading: false });
   }, []);
 
+  const register = useCallback(async (payload: RegisterPayload) => {
+    const { data } = await apiRegister(payload);
+    setState({
+      user: data.user,
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  }, []);
+
+  const registerWithDepartment = useCallback(async (payload: RegisterWithDepartmentPayload) => {
+    const { data } = await apiRegisterWithDepartment(payload);
+    setState({ user: data.user, isAuthenticated: true, isLoading: false });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, register, registerWithDepartment, logout }}>
       {children}
     </AuthContext.Provider>
   );

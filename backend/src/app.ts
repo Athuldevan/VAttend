@@ -13,12 +13,18 @@ const app = express();
 // ── Global middleware ───────────────────────────────────────────
 app.use(
   cors({
-    origin: env.CORS_ORIGIN,
+    origin: env.NODE_ENV === "development" ? true : env.CORS_ORIGIN,
     credentials: true,
   }),
 );
 app.use(cookieParser());
 app.use(express.json());
+
+// ── Request logger ──────────────────────────────────────────────
+app.use((req, _res, next) => {
+  console.log(`[API] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // ── Routes ──────────────────────────────────────────────────────
 app.use("/api/health", healthRoutes);

@@ -53,7 +53,7 @@ export const createTimetableSchema = z.object({
   startTime: timeSchema,
 
   endTime: timeSchema,
-  department: objectIdSchema,
+  department: objectIdSchema.optional(),
 });
 
 /**

@@ -39,16 +39,16 @@
   // (past-semester) slots are excluded so Sem 2's timetable can reuse the
   // same day/period without colliding with Sem 1's now-archived entry.
   timetableSchema.index(
-    { classId: 1, dayOfWeek: 1, period: 1 },
-    { unique: true, partialFilterExpression: { isActive: true } },
+    { class: 1, semester: 1, dayOfWeek: 1, period: 1 },
+    { unique: true, partialFilterExpression: { isDeleted: false } },
   );
 
   // A teacher can't teach two ACTIVE slots at the same time — checked across
   // every class/department, since the clash is about real calendar time,
   // not which semester number the class happens to be on.
   timetableSchema.index(
-    { teacherId: 1, dayOfWeek: 1, period: 1 },
-    { unique: true, partialFilterExpression: { isActive: true } },
+    { teacher: 1, dayOfWeek: 1, period: 1 },
+    { unique: true, partialFilterExpression: { isDeleted: false } },
   );
 
   export const TimeTable = mongoose.model<ITimeTable>(
