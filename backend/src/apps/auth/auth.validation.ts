@@ -5,11 +5,13 @@ const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
 const passwordSchema = z
   .string()
-  .min(5, "Password must be at least 8 characters")
+  .min(5, "Password must be at least 8 characters");
 
 const studentFieldsSchema = z.object({
   rollNumber: z.coerce.number().int().positive("Roll number must be positive"),
-  class: z.string().regex(objectIdRegex, "class must be a valid MongoDB ObjectId"),
+  class: z
+    .string()
+    .regex(objectIdRegex, "class must be a valid MongoDB ObjectId"),
 });
 
 const commonRegisterSchema = z.object({
@@ -22,8 +24,15 @@ const commonRegisterSchema = z.object({
 });
 
 const newDepartmentSchema = z.object({
-  name: z.string().trim().min(2, "Department name must be at least 2 characters"),
-  code: z.string().trim().min(2, "Department code must be at least 2 characters").toUpperCase(),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Department name must be at least 2 characters"),
+  code: z
+    .string()
+    .trim()
+    .min(2, "Department code must be at least 2 characters")
+    .toUpperCase(),
 });
 
 export const registerSchema = z.discriminatedUnion("role", [
@@ -40,11 +49,7 @@ export const registerSchema = z.discriminatedUnion("role", [
 ]);
 
 export const loginSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .email("Invalid email address")
-    .toLowerCase(),
+  email: z.string().trim().email("Invalid email address").toLowerCase(),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -58,9 +63,12 @@ export const registerWithDepartmentSchema = commonRegisterSchema
 
 export const setPasswordSchema = z.object({
   email: z.string().trim().email().toLowerCase(),
+  setupCode: z.string().trim().min(4, "Setup code is required"),
   password: passwordSchema,
 });
 
 export type RegisterBody = z.infer<typeof registerSchema>;
-export type RegisterWithDepartmentBody = z.infer<typeof registerWithDepartmentSchema>;
+export type RegisterWithDepartmentBody = z.infer<
+  typeof registerWithDepartmentSchema
+>;
 export type LoginBody = z.infer<typeof loginSchema>;

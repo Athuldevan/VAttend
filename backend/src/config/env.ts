@@ -26,4 +26,12 @@ export const env = {
   BCRYPT_SALT_ROUNDS: process.env.BCRYPT_SALT_ROUNDS ?? "12",
 
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+
+  SMTP_HOST: process.env.SMTP_HOST ?? "smtp.gmail.com",
+  SMTP_PORT: parseInt(process.env.SMTP_PORT ?? "465", 10),
+  SMTP_SECURE:
+    process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
+  SMTP_USER: process.env.SMTP_USER ?? "",
+  SMTP_PASS: process.env.SMTP_PASS ?? "",
+  SMTP_FROM: process.env.SMTP_FROM ?? "AMS Portal <clinicaonerevin@gmail.com>",
 } as const;

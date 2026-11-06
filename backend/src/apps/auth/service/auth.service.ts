@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import User from "../../user/user.model.js";
 import { Department } from "../../department/modal/department.modal.js";
 import type { IUserDocument, SafeUser } from "../../user/user.types.js";
@@ -77,11 +78,27 @@ export async function createUserWithDepartment(
   }
 }
 
-export async function setTeacherPassword(input: { email: string; password: string }) {
-  const user = await User.findOne({ email: input.email, role: "TEACHER", isActive: false });
+export async function setTeacherPassword(input: { email: string; setupCode: string; password: string }) {
+  const user = await User.findOne({ email: input.email, role: "TEACHER", isActive: false }).select(
+    "+passwordSetupCodeHash +passwordSetupExpiresAt",
+  );
   if (!user) throw new AppError("No pending teacher account was found for this email", HTTP_STATUS.BAD_REQUEST);
+
+  if (user.passwordSetupExpiresAt && user.passwordSetupExpiresAt < new Date()) {
+    throw new AppError("Setup code has expired. Please ask your administrator to re-invite you.", HTTP_STATUS.BAD_REQUEST);
+  }
+
+  if (user.passwordSetupCodeHash) {
+    const inputHash = crypto.createHash("sha256").update(input.setupCode.trim()).digest("hex");
+    if (inputHash !== user.passwordSetupCodeHash) {
+      throw new AppError("Invalid setup code. Please check your email and try again.", HTTP_STATUS.BAD_REQUEST);
+    }
+  }
+
   user.password = await hashPassword(input.password);
   user.isActive = true;
+  user.passwordSetupCodeHash = undefined;
+  user.passwordSetupExpiresAt = undefined;
   await user.save();
 }
 

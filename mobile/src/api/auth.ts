@@ -94,7 +94,7 @@ export const getRegistrationDepartments = async (): Promise<RegistrationDepartme
   return response.data.data || [];
 };
 
-export const setPassword = async (payload: { email: string; password: string }) => {
+export const setPassword = async (payload: { email: string; setupCode: string; password: string }) => {
   await axiosClient.post('/auth/set-password', payload);
 };
 
