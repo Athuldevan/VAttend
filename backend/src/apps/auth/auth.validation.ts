@@ -62,8 +62,8 @@ export const registerWithDepartmentSchema = commonRegisterSchema
   });
 
 export const setPasswordSchema = z.object({
-  email: z.string().trim().email().toLowerCase(),
-  setupCode: z.string().trim().min(4, "Setup code is required"),
+  email: z.string().trim().email("Invalid email address").toLowerCase(),
+  setupCode: z.string().trim().optional(),
   password: passwordSchema,
 });
 

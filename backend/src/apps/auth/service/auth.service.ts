@@ -78,7 +78,7 @@ export async function createUserWithDepartment(
   }
 }
 
-export async function setTeacherPassword(input: { email: string; setupCode: string; password: string }) {
+export async function setTeacherPassword(input: { email: string; setupCode?: string; password: string }) {
   const user = await User.findOne({ email: input.email, role: "TEACHER", isActive: false }).select(
     "+passwordSetupCodeHash +passwordSetupExpiresAt",
   );
@@ -89,6 +89,9 @@ export async function setTeacherPassword(input: { email: string; setupCode: stri
   }
 
   if (user.passwordSetupCodeHash) {
+    if (!input.setupCode || !input.setupCode.trim()) {
+      throw new AppError("Please enter the 6-digit setup code sent to your email", HTTP_STATUS.BAD_REQUEST);
+    }
     const inputHash = crypto.createHash("sha256").update(input.setupCode.trim()).digest("hex");
     if (inputHash !== user.passwordSetupCodeHash) {
       throw new AppError("Invalid setup code. Please check your email and try again.", HTTP_STATUS.BAD_REQUEST);
