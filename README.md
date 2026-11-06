@@ -1,17 +1,19 @@
 # VAttend – Attendance Management System
 
-A mobile-based **Attendance Management System** developed for **Government Victoria College, Palakkad**, designed to simplify and digitize academic attendance management.
+**VAttend** is a mobile-based Attendance Management System developed for **Government Victoria College, Palakkad**, designed to digitize and simplify academic attendance management.
 
-VMS enables faculty members to manage their timetables, mark and update student attendance, while administrators can manage departments, classes, subjects, teachers, and academic schedules through a centralized system.
+Built using React Native (Expo), TypeScript, Node.js, Express.js, and MongoDB, VAttend provides a centralized platform for faculty members and administrators to manage student attendance and academic schedules efficiently.
 
-## 🚀 Features
+Faculty members can view their timetables, mark and update student attendance, while administrators can manage departments, classes, subjects, teachers, and academic schedules.
+
+## ✨ Features
 
 ### 👨‍🏫 Faculty Module
-- View assigned teaching schedules and timetables.
-- View assigned classes and subjects.
+- View assigned teaching timetables.
+- Access assigned classes and subjects.
 - Mark student attendance.
-- Update and manage previously recorded attendance.
-- Access attendance records.
+- Update previously recorded attendance.
+- View attendance records.
 
 ### 🛡️ Administration Module
 - Manage departments and academic programs.
@@ -22,61 +24,87 @@ VMS enables faculty members to manage their timetables, mark and update student 
 - Centralized academic data management.
 
 ### 📱 Mobile Application
-- Mobile-first user experience.
-- Intuitive and easy-to-use interface.
-- Secure authentication and role-based access.
-- Integration with the backend REST API.
+- Built with React Native and Expo.
+- Clean and intuitive user interface.
+- Secure authentication.
+- Role-based access control.
+- REST API integration.
 
-## 🛠️ Technology Stack
+## 🛠️ Tech Stack
 
-| Layer | Technologies |
+| Category | Technology |
 |---|---|
-| Mobile Application | React Native, Expo |
-| Language | TypeScript |
-| Backend | Node.js, Express.js |
+| Mobile Application | React Native |
+| Framework | Expo |
+| Programming Language | TypeScript |
+| Backend Runtime | Node.js |
+| Backend Framework | Express.js |
 | Database | MongoDB |
 | API Architecture | REST API |
-| Development Environment | Expo CLI, Node.js |
+
+## 🎨 Design Theme
+
+VAttend follows a modern **Academic Blue + Teal** design system.
+
+| Purpose | Color | Hex |
+|---|---|---|
+| Primary | Academic Navy | `#163B65` |
+| Secondary | Blue | `#2563EB` |
+| Accent | Teal | `#0D9488` |
+| Background | Light Gray | `#F5F7FA` |
+| Surface | White | `#FFFFFF` |
+| Primary Text | Slate | `#334155` |
+
+### Attendance Status Colors
+
+| Status | Color | Hex |
+|---|---|---|
+| Present | Green | `#16A34A` |
+| Absent | Red | `#DC2626` |
+| Late | Orange | `#EA580C` |
+| Pending | Amber | `#D97706` |
 
 ## 🏗️ System Architecture
 
-The application follows a client-server architecture.
+VAttend follows a client-server architecture where the mobile application communicates with the backend through REST APIs.
 
 ```text
-                    ┌──────────────────────┐
-                    │   React Native App   │
-                    │       (Expo)         │
-                    └──────────┬───────────┘
-                               │
-                               │ REST API
-                               ▼
-                    ┌──────────────────────┐
-                    │    Express.js API    │
-                    │      Node.js         │
-                    └──────────┬───────────┘
-                               │
-                               │ Mongoose / MongoDB Driver
-                               ▼
-                    ┌──────────────────────┐
-                    │       MongoDB        │
-                    │      Database        │
-                    └──────────────────────┘
+       ┌────────────────────────────┐
+       │       VAttend Mobile       │
+       │    React Native + Expo     │
+       │         TypeScript         │
+       └─────────────┬──────────────┘
+                     │
+                     │ REST API
+                     ▼
+       ┌────────────────────────────┐
+       │       Backend API          │
+       │     Node.js + Express      │
+       │         TypeScript         │
+       └─────────────┬──────────────┘
+                     │
+                     │ Database Operations
+                     ▼
+       ┌────────────────────────────┐
+       │          MongoDB           │
+       │       Data Storage         │
+       └────────────────────────────┘
 ```
 
 ## 📂 Project Structure
 
-The project is organized into separate frontend and backend applications.
+The project is organized into separate mobile and backend applications.
 
 ```text
-VMS/
+VAttend/
 │
-├── mobile/                 # React Native Expo application
+├── mobile/
 │   ├── src/
 │   ├── assets/
 │   ├── app.json
 │   └── package.json
 │
-├── backend/                # Node.js Express API
+├── backend/
 │   ├── src/
 │   │   ├── config/
 │   │   ├── controllers/
@@ -92,39 +120,33 @@ VMS/
 └── README.md
 ```
 
-*Note: The folder structure above is illustrative. Adjust it to match the actual repository structure.*
+*Note: Update the structure to reflect the actual repository.*
 
-## ⚙️ Getting Started
-
-Follow these instructions to set up the project locally.
+## ⚙️ Installation & Setup
 
 ### Prerequisites
 
-Make sure you have installed:
-
 - Node.js (LTS)
 - npm
-- MongoDB (local instance or MongoDB Atlas)
-- Expo Go (for physical device testing)
+- MongoDB or MongoDB Atlas
+- Expo Go
 - Git
 
 ### 1. Clone the Repository
 
 ```bash
 git clone <YOUR_REPOSITORY_URL>
-cd VMS
+cd VAttend
 ```
 
 ### 2. Backend Setup
-
-Navigate to the backend directory:
 
 ```bash
 cd backend
 npm install
 ```
 
-Configure your environment variables by creating a `.env` file:
+Create a `.env` file in the backend directory:
 
 ```env
 PORT=5000
@@ -133,4 +155,66 @@ JWT_SECRET=your_jwt_secret
 NODE_ENV=development
 ```
 
-Start the
+Start the backend development server:
+
+```bash
+npm run dev
+```
+
+### 3. Mobile Application Setup
+
+Open another terminal:
+
+```bash
+cd mobile
+npm install
+```
+
+Configure the backend API base URL for your development environment.
+
+Start the Expo development server:
+
+```bash
+npx expo start
+```
+
+Scan the QR code using Expo Go to run VAttend on your mobile device.
+
+## 🔐 Security
+
+- Authentication and authorization.
+- Role-based access control.
+- Protected API endpoints.
+- Server-side input validation.
+- Secure environment variable management.
+- Access restrictions for administrative operations.
+
+## 🎯 Project Objectives
+
+- Digitize the college attendance management process.
+- Minimize manual attendance tracking.
+- Simplify attendance management for faculty.
+- Centralize academic and administrative information.
+- Improve the accessibility and accuracy of attendance records.
+- Provide an efficient mobile-first experience.
+
+## 🔮 Future Enhancements
+
+- Attendance percentage calculation and analytics.
+- Student attendance history.
+- Low-attendance alerts and notifications.
+- Export attendance reports to PDF and Excel.
+- Push notifications for timetable updates.
+- Advanced attendance reporting and dashboards.
+
+## 🏛️ Institution
+
+**Government Victoria College, Palakkad, Kerala, India**
+
+VAttend is developed to support the institution's academic administration through a centralized, mobile-based attendance management platform.
+
+---
+
+## 📄 License
+
+Licensing and distribution terms are subject to the project's ownership and institutional requirements.
