@@ -31,6 +31,7 @@ import {
 } from '../api/timetable';
 import { getTeachers, type TeacherOption } from '../api/users';
 import { getSubjects, type SubjectOption } from '../api/subjects';
+import { useAuth } from '../context/AuthContext';
 
 // ─── Helpers ─────────────────────────────────────────
 const currentAcademicYear = (): string => {
@@ -58,6 +59,7 @@ interface FormModalProps {
 }
 
 function FormModal({ visible, onClose, editingClass, onSaved }: FormModalProps) {
+  const { user } = useAuth();
   const [form, setForm] = useState<CreateClassPayload>(emptyForm());
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loadingDepts, setLoadingDepts] = useState(false);
@@ -75,7 +77,10 @@ function FormModal({ visible, onClose, editingClass, onSaved }: FormModalProps) 
               academicYear: editingClass.academicYear,
               currentSemester: editingClass.currentSemester,
             }
-          : emptyForm()
+          : {
+              ...emptyForm(),
+              departmentId: user?.departmentId || '',
+            }
       );
       setError(null);
 

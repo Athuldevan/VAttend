@@ -55,9 +55,9 @@ export const getClasses = async (
   res: Response,
 ) => {
   const departmentId =
-    req.query.departmentId as
+    (req.query.departmentId as
       | string
-      | undefined;
+      | undefined) || req.user?.departmentId;
 
   const classes =
     await getClassesService(

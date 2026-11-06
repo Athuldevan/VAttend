@@ -36,7 +36,7 @@ router.get(
 router.post(
   "/",
   authenticate,
-  authorize("ADMIN", "TEACHER"),
+  authorize("ADMIN"),
   validate(createDepartmentSchema),
   createDepartment,
 );
@@ -45,7 +45,7 @@ router.post(
 router.patch(
   "/:id",
   authenticate,
-  authorize("ADMIN", "TEACHER"),
+  authorize("ADMIN"),
   validate(departmentIdParamSchema),
   validate(updateDepartmentSchema),
   updateDepartment,

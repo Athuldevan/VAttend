@@ -107,7 +107,12 @@ export default function RegisterScreen({ onBackToLogin }: { onBackToLogin: () =>
                 <TouchableOpacity
                   key={item}
                   style={[styles.roleOption, role === item && styles.roleOptionSelected]}
-                  onPress={() => setRole(item)}
+                  onPress={() => {
+                    setRole(item);
+                    if (item === 'TEACHER') {
+                      setCreatingDepartment(false);
+                    }
+                  }}
                 >
                   <Text style={[styles.roleText, role === item && styles.roleTextSelected]}>
                     {item === 'TEACHER' ? 'Teacher' : 'Admin'}
@@ -117,23 +122,27 @@ export default function RegisterScreen({ onBackToLogin }: { onBackToLogin: () =>
             </View>
 
             <Text style={styles.label}>Department</Text>
-            <View style={styles.departmentModeRow}>
-              <TouchableOpacity
-                style={[styles.modeOption, !creatingDepartment && styles.modeOptionSelected]}
-                onPress={() => setCreatingDepartment(false)}
-              >
-                <Text style={[styles.modeText, !creatingDepartment && styles.roleTextSelected]}>Select existing</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modeOption, creatingDepartment && styles.modeOptionSelected]}
-                onPress={() => setCreatingDepartment(true)}
-              >
-                <Text style={[styles.modeText, creatingDepartment && styles.roleTextSelected]}>Create new</Text>
-              </TouchableOpacity>
-            </View>
+            {role === 'ADMIN' ? (
+              <View style={styles.departmentModeRow}>
+                <TouchableOpacity
+                  style={[styles.modeOption, !creatingDepartment && styles.modeOptionSelected]}
+                  onPress={() => setCreatingDepartment(false)}
+                >
+                  <Text style={[styles.modeText, !creatingDepartment && styles.roleTextSelected]}>Select existing</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modeOption, creatingDepartment && styles.modeOptionSelected]}
+                  onPress={() => setCreatingDepartment(true)}
+                >
+                  <Text style={[styles.modeText, creatingDepartment && styles.roleTextSelected]}>Create new</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.subtitle}>Select the department registered by your HOD / Admin.</Text>
+            )}
             {loadingDepartments ? (
               <ActivityIndicator color={Colors.primary} style={styles.departmentLoader} />
-            ) : creatingDepartment ? (
+            ) : role === 'ADMIN' && creatingDepartment ? (
               <>
                 <Field label="Department name" value={departmentName} onChangeText={setDepartmentName} placeholder="e.g. Computer Science" error={fieldErrors['department.name']} />
                 <Field label="Department code" value={departmentCode} onChangeText={setDepartmentCode} placeholder="e.g. CS" error={fieldErrors['department.code']} />

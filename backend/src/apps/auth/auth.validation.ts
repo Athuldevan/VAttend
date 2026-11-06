@@ -53,11 +53,11 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-/** Public bootstrap flow for creating a department alongside its first staff account. */
+/** Public bootstrap flow for creating a department alongside its first admin account. */
 export const registerWithDepartmentSchema = commonRegisterSchema
   .omit({ departmentId: true })
   .extend({
-    role: z.union([z.literal(ROLES.ADMIN), z.literal(ROLES.TEACHER)]),
+    role: z.literal(ROLES.ADMIN),
     department: newDepartmentSchema,
   });
 

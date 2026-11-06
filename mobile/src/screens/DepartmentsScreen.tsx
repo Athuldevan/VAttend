@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,15 +12,40 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
-import { createDepartment, type Department } from '../api/departments';
+import { createDepartment, getDepartments, type Department } from '../api/departments';
+import { useAuth } from '../context/AuthContext';
 
 export default function DepartmentsScreen() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Form states
+  const [showAddForm, setShowAddForm] = useState(false);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<Department | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ name?: string; code?: string }>({});
+
+  const loadDepartments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getDepartments();
+      setDepartments(res.data);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDepartments();
+  }, [loadDepartments]);
 
   const validate = (): boolean => {
     const e: typeof errors = {};
@@ -44,27 +69,26 @@ export default function DepartmentsScreen() {
         name: name.trim(),
         code: code.trim(),
       });
-      setSuccess(response.data);
+      setSuccess(`Department "${response.data.name}" created successfully!`);
       setName('');
       setCode('');
       setErrors({});
+      setShowAddForm(false);
+      await loadDepartments();
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 409) setError('A department with this code already exists.');
-      else if (status === 403) setError("You don't have permission.");
+      else if (status === 403) setError("Only administrators have permission to create departments.");
       else setError(err?.response?.data?.message || 'Failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         contentContainerStyle={styles.content}
@@ -72,110 +96,156 @@ export default function DepartmentsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <Text style={styles.pageTitle}>Departments</Text>
-        <Text style={styles.pageSubtitle}>Create and manage academic departments</Text>
-
-        {/* Form Card */}
-        <View style={styles.formCard}>
-          <View style={styles.formHeader}>
-            <View style={styles.formIconCircle}>
-              <Ionicons name="add" size={18} color={Colors.primary} />
-            </View>
-            <Text style={styles.formTitle}>New Department</Text>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.pageTitle}>Department Directory</Text>
+            <Text style={styles.pageSubtitle}>
+              {isAdmin
+                ? 'Your assigned department and institution branches'
+                : 'Your department details'}
+            </Text>
           </View>
-
-          {/* Name */}
-          <Text style={styles.fieldLabel}>Department Name</Text>
-          <TextInput
-            style={[styles.textInput, errors.name ? styles.inputError : null]}
-            value={name}
-            onChangeText={setName}
-            placeholder="e.g. Department of Statistics"
-            placeholderTextColor={Colors.textTertiary}
-          />
-          {errors.name && (
-            <View style={styles.fieldError}>
-              <Ionicons name="alert-circle" size={12} color={Colors.error} />
-              <Text style={styles.fieldErrorText}>{errors.name}</Text>
-            </View>
+          {isAdmin && !showAddForm && (
+            <TouchableOpacity
+              style={styles.addToggleBtn}
+              onPress={() => setShowAddForm(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={18} color="#fff" />
+              <Text style={styles.addToggleText}>New Dept</Text>
+            </TouchableOpacity>
           )}
-          <Text style={styles.charCount}>{name.length}/100</Text>
-
-          {/* Code */}
-          <Text style={styles.fieldLabel}>Department Code</Text>
-          <TextInput
-            style={[styles.textInput, styles.codeInput, errors.code ? styles.inputError : null]}
-            value={code}
-            onChangeText={(v) => setCode(v.toUpperCase())}
-            placeholder="e.g. STAT"
-            placeholderTextColor={Colors.textTertiary}
-            autoCapitalize="characters"
-          />
-          {errors.code ? (
-            <View style={styles.fieldError}>
-              <Ionicons name="alert-circle" size={12} color={Colors.error} />
-              <Text style={styles.fieldErrorText}>{errors.code}</Text>
-            </View>
-          ) : (
-            <Text style={styles.hint}>Letters, numbers, underscores and hyphens. Auto-uppercase.</Text>
-          )}
-
-          {/* API Error */}
-          {error && (
-            <View style={styles.apiError}>
-              <Ionicons name="alert-circle-outline" size={16} color={Colors.error} />
-              <Text style={styles.apiErrorText}>{error}</Text>
-            </View>
-          )}
-
-          {/* Submit */}
-          <TouchableOpacity
-            style={[styles.submitBtn, submitting && styles.submitDisabled]}
-            onPress={handleSubmit}
-            disabled={submitting}
-            activeOpacity={0.8}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color={Colors.textInverse} />
-            ) : (
-              <>
-                <Ionicons name="add" size={18} color={Colors.textInverse} />
-                <Text style={styles.submitText}>Create Department</Text>
-              </>
-            )}
-          </TouchableOpacity>
         </View>
 
-        {/* Success */}
         {success && (
-          <View style={styles.successCard}>
-            <View style={styles.successHeader}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
-              <Text style={styles.successTitle}>Created Successfully!</Text>
-            </View>
-            <Text style={styles.successSubtext}>{success.name} has been added.</Text>
-
-            <View style={styles.detailCard}>
-              <DetailRow label="ID" value={success.id} mono />
-              <DetailRow label="Name" value={success.name} />
-              <DetailRow label="Code" value={success.code} badge />
-              <DetailRow label="Created" value={formatDate(success.createdAt)} />
-            </View>
+          <View style={styles.alertSuccess}>
+            <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+            <Text style={styles.alertSuccessText}>{success}</Text>
           </View>
         )}
 
-        {/* Info Card */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Field Requirements</Text>
-          <View style={styles.infoRow}>
-            <View style={styles.infoBadge}><Text style={styles.infoBadgeText}>N</Text></View>
-            <Text style={styles.infoText}><Text style={styles.infoStrong}>Name</Text> — 2 to 100 characters</Text>
+        {/* Add Department Form (Only for Admins who explicitly click New Dept) */}
+        {isAdmin && showAddForm && (
+          <View style={styles.formCard}>
+            <View style={styles.formHeader}>
+              <View style={styles.formIconCircle}>
+                <Ionicons name="business" size={18} color={Colors.primary} />
+              </View>
+              <Text style={styles.formTitle}>Add New Department</Text>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={() => {
+                  setShowAddForm(false);
+                  setError(null);
+                }}
+              >
+                <Ionicons name="close" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Name */}
+            <Text style={styles.fieldLabel}>Department Name</Text>
+            <TextInput
+              style={[styles.textInput, errors.name ? styles.inputError : null]}
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g. Computer Science"
+              placeholderTextColor={Colors.textTertiary}
+            />
+            {errors.name && (
+              <View style={styles.fieldError}>
+                <Ionicons name="alert-circle" size={12} color={Colors.error} />
+                <Text style={styles.fieldErrorText}>{errors.name}</Text>
+              </View>
+            )}
+
+            {/* Code */}
+            <Text style={styles.fieldLabel}>Department Code</Text>
+            <TextInput
+              style={[styles.textInput, styles.codeInput, errors.code ? styles.inputError : null]}
+              value={code}
+              onChangeText={(v) => setCode(v.toUpperCase())}
+              placeholder="e.g. CS"
+              placeholderTextColor={Colors.textTertiary}
+              autoCapitalize="characters"
+            />
+            {errors.code ? (
+              <View style={styles.fieldError}>
+                <Ionicons name="alert-circle" size={12} color={Colors.error} />
+                <Text style={styles.fieldErrorText}>{errors.code}</Text>
+              </View>
+            ) : (
+              <Text style={styles.hint}>Unique short code for roll calls and courses.</Text>
+            )}
+
+            {/* API Error */}
+            {error && (
+              <View style={styles.apiError}>
+                <Ionicons name="alert-circle-outline" size={16} color={Colors.error} />
+                <Text style={styles.apiErrorText}>{error}</Text>
+              </View>
+            )}
+
+            {/* Submit */}
+            <TouchableOpacity
+              style={[styles.submitBtn, submitting && styles.submitDisabled]}
+              onPress={handleSubmit}
+              disabled={submitting}
+              activeOpacity={0.8}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color={Colors.textInverse} />
+              ) : (
+                <Text style={styles.submitText}>Save Department</Text>
+              )}
+            </TouchableOpacity>
           </View>
-          <View style={styles.infoRow}>
-            <View style={styles.infoBadge}><Text style={styles.infoBadgeText}>C</Text></View>
-            <Text style={styles.infoText}><Text style={styles.infoStrong}>Code</Text> — 2 to 20, unique per institution</Text>
+        )}
+
+        {/* List of Departments */}
+        <Text style={styles.sectionTitle}>Registered Departments ({departments.length})</Text>
+
+        {loading ? (
+          <ActivityIndicator color={Colors.primary} style={{ marginVertical: Spacing.xl }} />
+        ) : departments.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Ionicons name="business-outline" size={36} color={Colors.textTertiary} />
+            <Text style={styles.emptyTitle}>No departments found</Text>
+            <Text style={styles.emptySub}>
+              {isAdmin
+                ? 'Create your first department using the button above.'
+                : 'Contact your administrator to configure a department.'}
+            </Text>
           </View>
-        </View>
+        ) : (
+          departments.map((dept) => {
+            const isMyDept = user?.departmentId === dept.id;
+            return (
+              <View
+                key={dept.id}
+                style={[styles.deptCard, isMyDept && styles.myDeptCard]}
+              >
+                <View style={styles.deptIconBadge}>
+                  <Ionicons name="business" size={20} color={isMyDept ? Colors.primary : Colors.textSecondary} />
+                </View>
+                <View style={styles.deptContent}>
+                  <View style={styles.deptTopRow}>
+                    <Text style={styles.deptName}>{dept.name}</Text>
+                    <View style={[styles.codeBadge, isMyDept && styles.myCodeBadge]}>
+                      <Text style={[styles.codeBadgeText, isMyDept && styles.myCodeBadgeText]}>{dept.code}</Text>
+                    </View>
+                  </View>
+                  {isMyDept && (
+                    <View style={styles.hodBadge}>
+                      <Ionicons name="shield-checkmark" size={12} color={Colors.primary} />
+                      <Text style={styles.hodBadgeText}>Your HOD Department</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })
+        )}
 
         <View style={{ height: Spacing['3xl'] }} />
       </ScrollView>
@@ -183,166 +253,254 @@ export default function DepartmentsScreen() {
   );
 }
 
-function DetailRow({ label, value, mono, badge }: { label: string; value: string; mono?: boolean; badge?: boolean }) {
-  return (
-    <View style={detailStyles.row}>
-      <Text style={detailStyles.label}>{label}</Text>
-      {badge ? (
-        <View style={detailStyles.badge}>
-          <Text style={detailStyles.badgeText}>{value}</Text>
-        </View>
-      ) : (
-        <Text style={[detailStyles.value, mono && detailStyles.mono]}>{value}</Text>
-      )}
-    </View>
-  );
-}
-
-const detailStyles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm },
-  label: { fontSize: FontSize.xs, fontFamily: Fonts.semibold, color: Colors.textTertiary },
-  value: { fontSize: FontSize.xs, fontFamily: Fonts.bold, color: Colors.text },
-  mono: { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 10 },
-  badge: { backgroundColor: Colors.primaryMuted, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 2 },
-  badgeText: { fontSize: FontSize.xs, fontFamily: Fonts.bold, color: Colors.primaryDark },
-});
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: Spacing.lg },
-  pageTitle: { fontSize: FontSize['2xl'], fontFamily: Fonts.extrabold, color: Colors.text },
-  pageSubtitle: { fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.textSecondary, marginTop: 2, marginBottom: Spacing.xl },
-
-  formCard: {
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  content: {
+    padding: Spacing.lg,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.lg,
+  },
+  pageTitle: {
+    fontSize: FontSize['2xl'],
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+  },
+  pageSubtitle: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.regular,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  addToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+  },
+  addToggleText: {
+    fontFamily: Fonts.semibold,
+    color: '#fff',
+    fontSize: FontSize.xs,
+    marginLeft: 4,
+  },
+  alertSuccess: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.greenBg,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    marginBottom: Spacing.md,
+  },
+  alertSuccessText: {
+    fontFamily: Fonts.medium,
+    color: Colors.success,
+    fontSize: FontSize.sm,
+    marginLeft: Spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: FontSize.base,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  deptCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.xl,
-    marginBottom: Spacing.lg,
-    shadowColor: '#1A1A1A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
-  formHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xl },
-  formIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primaryMuted,
+  myDeptCard: {
+    borderColor: Colors.primary,
+    backgroundColor: '#FAF5FF',
+  },
+  deptIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: Spacing.md,
   },
-  formTitle: { fontSize: FontSize.base, fontFamily: Fonts.bold, color: Colors.text },
-  fieldLabel: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.semibold,
+  deptContent: {
+    flex: 1,
+  },
+  deptTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  deptName: {
+    fontFamily: Fonts.bold,
+    color: Colors.text,
+    fontSize: FontSize.base,
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  codeBadge: {
+    backgroundColor: Colors.surfaceSecondary,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+  },
+  codeBadgeText: {
+    fontFamily: Fonts.bold,
     color: Colors.textSecondary,
+    fontSize: FontSize.xs,
+  },
+  myCodeBadge: {
+    backgroundColor: Colors.primaryBg,
+  },
+  myCodeBadgeText: {
+    color: Colors.primary,
+  },
+  hodBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  hodBadgeText: {
+    fontFamily: Fonts.semibold,
+    color: Colors.primary,
+    fontSize: FontSize.xs,
+    marginLeft: 4,
+  },
+  formCard: {
+    backgroundColor: Colors.surface,
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  formIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  formTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: FontSize.base,
+    color: Colors.text,
+    flex: 1,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  fieldLabel: {
+    fontFamily: Fonts.semibold,
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    marginBottom: 4,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
   },
   textInput: {
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: Radius.md,
-    backgroundColor: Colors.backgroundAlt,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    padding: Spacing.md,
     fontSize: FontSize.base,
-    fontFamily: Fonts.regular,
     color: Colors.text,
+    backgroundColor: Colors.surface,
+    marginBottom: Spacing.sm,
   },
   codeInput: {
     fontFamily: Fonts.bold,
-    letterSpacing: 2,
+    letterSpacing: 1,
   },
-  inputError: { borderColor: Colors.error, backgroundColor: Colors.errorBg },
-  fieldError: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.xs },
-  fieldErrorText: { fontSize: FontSize.xs, fontFamily: Fonts.medium, color: Colors.error },
-  charCount: { fontSize: FontSize.xs, fontFamily: Fonts.medium, color: Colors.textTertiary, textAlign: 'right', marginTop: 2 },
-  hint: { fontSize: FontSize.xs, fontFamily: Fonts.medium, color: Colors.textTertiary, marginTop: Spacing.xs },
-
+  inputError: {
+    borderColor: Colors.error,
+  },
+  fieldError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  fieldErrorText: {
+    fontFamily: Fonts.medium,
+    color: Colors.error,
+    fontSize: FontSize.xs,
+    marginLeft: 4,
+  },
+  hint: {
+    fontFamily: Fonts.regular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginBottom: Spacing.sm,
+  },
   apiError: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.errorBg,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginTop: Spacing.lg,
-    borderWidth: 1,
-    borderColor: '#F5CCCC',
-  },
-  apiErrorText: { flex: 1, fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.error },
-
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.lg,
-    marginTop: Spacing.xl,
-    shadowColor: Colors.primaryDark,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  submitDisabled: { opacity: 0.6 },
-  submitText: { fontSize: FontSize.base, fontFamily: Fonts.bold, color: Colors.text },
-
-  successCard: {
-    backgroundColor: Colors.successBg,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    padding: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-  successHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  successTitle: { fontSize: FontSize.base, fontFamily: Fonts.bold, color: Colors.success },
-  successSubtext: { fontSize: FontSize.sm, fontFamily: Fonts.medium, color: '#15803D', marginTop: 2 },
-  detailCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginTop: Spacing.md,
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-  },
-
-  infoCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.xl,
-  },
-  infoTitle: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
-    color: Colors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    backgroundColor: '#FEF2F2',
+    padding: Spacing.sm,
+    borderRadius: Radius.sm,
     marginBottom: Spacing.md,
   },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, marginBottom: Spacing.md },
-  infoBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.primaryMuted,
+  apiErrorText: {
+    fontFamily: Fonts.medium,
+    color: Colors.error,
+    fontSize: FontSize.xs,
+    marginLeft: 4,
+  },
+  submitBtn: {
+    backgroundColor: Colors.primary,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+  },
+  submitDisabled: {
+    opacity: 0.7,
+  },
+  submitText: {
+    fontFamily: Fonts.bold,
+    color: Colors.textInverse,
+    fontSize: FontSize.base,
+  },
+  emptyCard: {
+    padding: Spacing['2xl'],
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginTop: Spacing.md,
   },
-  infoBadgeText: { fontSize: 9, fontFamily: Fonts.bold, color: Colors.primaryDark },
-  infoText: { flex: 1, fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.textSecondary },
-  infoStrong: { fontFamily: Fonts.bold, color: Colors.text },
+  emptyTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: FontSize.base,
+    color: Colors.text,
+    marginTop: Spacing.md,
+  },
+  emptySub: {
+    fontFamily: Fonts.regular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    marginTop: 4,
+  },
 });
-

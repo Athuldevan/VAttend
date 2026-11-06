@@ -96,8 +96,12 @@ export default function MainNavigator() {
     { key: 'dashboard', label: 'Overview', icon: 'pie-chart-outline', activeIcon: 'pie-chart', accentColor: Colors.blue, accentBg: Colors.blueBg },
     { key: 'classes', label: 'Classes', icon: 'people-outline', activeIcon: 'people', accentColor: Colors.salmon, accentBg: Colors.salmonBg },
     { key: 'subjects', label: 'Subjects', icon: 'book-outline', activeIcon: 'book', accentColor: Colors.purple, accentBg: Colors.purpleBg },
-    { key: 'departments', label: 'Dept', icon: 'business-outline', activeIcon: 'business', accentColor: Colors.success, accentBg: Colors.greenBg },
-    ...(user?.role === 'ADMIN' ? [{ key: 'teachers' as TabKey, label: 'Teachers', icon: 'person-add-outline' as keyof typeof Ionicons.glyphMap, activeIcon: 'person-add' as keyof typeof Ionicons.glyphMap, accentColor: Colors.primaryDark, accentBg: Colors.primaryBg }] : []),
+    ...(user?.role === 'ADMIN'
+      ? [
+          { key: 'departments' as TabKey, label: 'Dept', icon: 'business-outline' as keyof typeof Ionicons.glyphMap, activeIcon: 'business' as keyof typeof Ionicons.glyphMap, accentColor: Colors.success, accentBg: Colors.greenBg },
+          { key: 'teachers' as TabKey, label: 'Teachers', icon: 'person-add-outline' as keyof typeof Ionicons.glyphMap, activeIcon: 'person-add' as keyof typeof Ionicons.glyphMap, accentColor: Colors.primaryDark, accentBg: Colors.primaryBg },
+        ]
+      : []),
   ];
 
   const activeTabInfo = tabs.find(t => t.key === activeTab);
