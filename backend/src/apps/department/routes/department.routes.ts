@@ -69,4 +69,4 @@ router.patch(
   restoreDepartment,
 );
 
-export default router ;
+export default router;

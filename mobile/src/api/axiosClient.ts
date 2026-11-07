@@ -1,9 +1,9 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import * as SecureStore from "expo-secure-store";
 
-// Your machine's Wi-Fi LAN IP (for Expo Go on physical devices)
-// Change this if your Wi-Fi network or IP changes.
-const BASE_URL = "http://172.26.167.82:4000/api/v1";
+// Configure API Base URL via EXPO_PUBLIC_API_URL or fallback
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || "http://172.26.167.82:4000/api/v1";
 
 export const API_BASE_URL = BASE_URL;
 

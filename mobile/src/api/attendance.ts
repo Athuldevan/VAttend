@@ -26,6 +26,7 @@ export interface AttendanceRecord {
 export interface MarkAttendancePayload {
   timetableSlotId: string;
   date: string;
+  remarks?: string;
   records: Array<{
     studentId: string;
     status: AttendanceStatus;

@@ -8,12 +8,9 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
-  TextInput,
-  Modal,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, FontSize, FontWeight, Fonts } from '../constants/theme';
+import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
 import {
   getClasses,
   createClass,
@@ -23,6 +20,7 @@ import {
   type CreateClassPayload,
 } from '../api/classes';
 import { getDepartments, type Department } from '../api/departments';
+import { getPrograms, type Program } from '../api/programs';
 import {
   getClassTimetable,
   createTimetable,
@@ -32,8 +30,12 @@ import {
 import { getTeachers, type TeacherOption } from '../api/users';
 import { getSubjects, type SubjectOption } from '../api/subjects';
 import { useAuth } from '../context/AuthContext';
+import Button from '../components/Button';
+import Input from '../components/Input';
+import Sheet from '../components/Sheet';
+import Tag from '../components/Tag';
+import SkeletonList from '../components/Skeleton';
 
-// ─── Helpers ─────────────────────────────────────────
 const currentAcademicYear = (): string => {
   const now = new Date();
   const y = now.getFullYear();
@@ -42,216 +44,6 @@ const currentAcademicYear = (): string => {
   return `${start}-${String(start + 1).slice(-2)}`;
 };
 
-const emptyForm = (): CreateClassPayload => ({
-  programId: '',
-  departmentId: '',
-  year: 1,
-  academicYear: currentAcademicYear(),
-  currentSemester: 1,
-});
-
-// ─── Create/Edit Modal ─────────────────────────────────
-interface FormModalProps {
-  visible: boolean;
-  onClose: () => void;
-  editingClass: ClassItem | null;
-  onSaved: (cls: ClassItem, isEdit: boolean) => void;
-}
-
-function FormModal({ visible, onClose, editingClass, onSaved }: FormModalProps) {
-  const { user } = useAuth();
-  const [form, setForm] = useState<CreateClassPayload>(emptyForm());
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [loadingDepts, setLoadingDepts] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (visible) {
-      setForm(
-        editingClass
-          ? {
-              programId: editingClass.programId,
-              departmentId: editingClass.departmentId,
-              year: editingClass.year,
-              academicYear: editingClass.academicYear,
-              currentSemester: editingClass.currentSemester,
-            }
-          : {
-              ...emptyForm(),
-              departmentId: user?.departmentId || '',
-            }
-      );
-      setError(null);
-
-      setLoadingDepts(true);
-      getDepartments()
-        .then((res) => setDepartments(res.data))
-        .catch(() => setError('Failed to load departments'))
-        .finally(() => setLoadingDepts(false));
-    }
-  }, [visible, editingClass]);
-
-  const handleSubmit = async () => {
-    if (!form.departmentId) {
-      setError('Please select a department.');
-      return;
-    }
-    if (!form.academicYear.trim()) {
-      setError('Academic year is required.');
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-    try {
-      const payload: CreateClassPayload = {
-        ...form,
-        departmentId: form.departmentId.trim(),
-        academicYear: form.academicYear.trim(),
-      };
-      if (form.programId?.trim()) payload.programId = form.programId.trim();
-      else delete payload.programId;
-
-      const res = editingClass
-        ? await updateClass(editingClass.id, payload)
-        : await createClass(payload);
-      onSaved(res.data, Boolean(editingClass));
-      onClose();
-    } catch (err: any) {
-      const status = err?.response?.status;
-      if (status === 409) setError('A class with these details already exists.');
-      else if (status === 403) setError("You don't have permission.");
-      else setError(err?.response?.data?.message || 'Failed. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {editingClass ? 'Edit Class' : 'New Class'}
-            </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-            {/* Department Selector */}
-            <Text style={styles.fieldLabel}>Department</Text>
-            {loadingDepts ? (
-              <ActivityIndicator size="small" color={Colors.primary} />
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-                {departments.map((d) => {
-                  const isSelected = form.departmentId === d.id;
-                  return (
-                    <TouchableOpacity
-                      key={d.id}
-                      style={[styles.chip, isSelected && styles.chipActive]}
-                      onPress={() => setForm((p) => ({ ...p, departmentId: d.id }))}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
-                        {d.code || d.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
-
-            {/* Year Selector */}
-            <Text style={styles.fieldLabel}>Year</Text>
-            <View style={styles.pillRow}>
-              {[1, 2, 3, 4, 5].map((y) => {
-                const isSelected = form.year === y;
-                return (
-                  <TouchableOpacity
-                    key={y}
-                    style={[styles.pill, isSelected && styles.pillActive]}
-                    onPress={() => setForm((p) => ({ ...p, year: y }))}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>
-                      Year {y}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Semester Selector */}
-            <Text style={styles.fieldLabel}>Current Semester</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-              {Array.from({ length: 10 }, (_, i) => i + 1).map((s) => {
-                const isSelected = form.currentSemester === s;
-                return (
-                  <TouchableOpacity
-                    key={s}
-                    style={[styles.pill, isSelected && styles.pillActive]}
-                    onPress={() => setForm((p) => ({ ...p, currentSemester: s }))}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>
-                      Sem {s}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* Academic Year */}
-            <Text style={styles.fieldLabel}>Academic Year</Text>
-            <TextInput
-              style={styles.textInput}
-              value={form.academicYear}
-              onChangeText={(val) => setForm((p) => ({ ...p, academicYear: val }))}
-              placeholder="e.g. 2026-27"
-              placeholderTextColor={Colors.textTertiary}
-            />
-
-            {/* Error */}
-            {error && (
-              <View style={styles.formError}>
-                <Ionicons name="alert-circle-outline" size={16} color={Colors.error} />
-                <Text style={styles.formErrorText}>{error}</Text>
-              </View>
-            )}
-          </ScrollView>
-
-          {/* Actions */}
-          <View style={styles.modalActions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.7}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
-              onPress={handleSubmit}
-              disabled={submitting}
-              activeOpacity={0.8}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color={Colors.textInverse} />
-              ) : (
-                <Text style={styles.submitBtnText}>
-                  {editingClass ? 'Save' : 'Create'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-// ─── Class Timetable Modal ──────────────────────────────
 const DAYS_OF_WEEK = [
   { day: 1, label: 'Mon', full: 'Monday' },
   { day: 2, label: 'Tue', full: 'Tuesday' },
@@ -260,64 +52,146 @@ const DAYS_OF_WEEK = [
   { day: 5, label: 'Fri', full: 'Friday' },
 ];
 
-interface ClassTimetableModalProps {
-  visible: boolean;
-  onClose: () => void;
-  classItem: ClassItem | null;
-}
-
-function ClassTimetableModal({ visible, onClose, classItem }: ClassTimetableModalProps) {
-  const [slots, setSlots] = useState<TimetableSlot[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [selectedDay, setSelectedDay] = useState<number>(1);
+export default function ClassesScreen() {
+  const { user } = useAuth();
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [showAdd, setShowAdd] = useState<boolean>(false);
-  const [addPeriod, setAddPeriod] = useState<number>(1);
-  const [addStartTime, setAddStartTime] = useState<string>('09:00');
-  const [addEndTime, setAddEndTime] = useState<string>('10:00');
-  const [addSubject, setAddSubject] = useState<string>('');
-  const [addTeacher, setAddTeacher] = useState<string>('');
-  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
-  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
-  const [loadingOptions, setLoadingOptions] = useState<boolean>(false);
-  const [savingSlot, setSavingSlot] = useState<boolean>(false);
-  const [addError, setAddError] = useState<string | null>(null);
+  // Sheet states
+  const [classSheetVisible, setClassSheetVisible] = useState(false);
+  const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
 
-  const fetchTimetable = useCallback(async () => {
-    if (!classItem) return;
-    setLoading(true);
+  const [timetableSheetVisible, setTimetableSheetVisible] = useState(false);
+  const [selectedClassForTimetable, setSelectedClassForTimetable] = useState<ClassItem | null>(null);
+
+  const [addPeriodSheetVisible, setAddPeriodSheetVisible] = useState(false);
+
+  // Form states for class
+  const [formDepartmentId, setFormDepartmentId] = useState('');
+  const [formProgramId, setFormProgramId] = useState('');
+  const [formYear, setFormYear] = useState(1);
+  const [formSemester, setFormSemester] = useState(1);
+  const [formAcademicYear, setFormAcademicYear] = useState(currentAcademicYear());
+  const [classFormSubmitting, setClassFormSubmitting] = useState(false);
+  const [classFormError, setClassFormError] = useState<string | null>(null);
+
+  // Timetable slot states
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [slots, setSlots] = useState<TimetableSlot[]>([]);
+  const [timetableLoading, setTimetableLoading] = useState(false);
+
+  // Add period form states
+  const [addPeriod, setAddPeriod] = useState(1);
+  const [addStartTime, setAddStartTime] = useState('09:00');
+  const [addEndTime, setAddEndTime] = useState('10:00');
+  const [addSubject, setAddSubject] = useState('');
+  const [addTeacher, setAddTeacher] = useState('');
+  const [availableTeachers, setAvailableTeachers] = useState<TeacherOption[]>([]);
+  const [availableSubjects, setAvailableSubjects] = useState<SubjectOption[]>([]);
+  const [savingSlot, setSavingSlot] = useState(false);
+  const [addSlotError, setAddSlotError] = useState<string | null>(null);
+
+  const isHOD = user?.role === 'ADMIN';
+
+  const fetchData = useCallback(async () => {
     setError(null);
     try {
-      const res = await getClassTimetable(classItem.id, classItem.currentSemester);
-      setSlots(res.data || []);
+      const [classesRes, programsRes, deptsRes] = await Promise.all([
+        getClasses(),
+        getPrograms().catch(() => ({ data: [] })),
+        getDepartments().catch(() => ({ data: [] })),
+      ]);
+      setClasses(classesRes.data || []);
+      setPrograms(programsRes.data || []);
+      setDepartments(deptsRes.data || []);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to load timetable.');
+      setError(err?.message || 'Failed to load classes.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [classItem]);
+  }, []);
 
   useEffect(() => {
-    if (visible && classItem) {
-      fetchTimetable();
-      setShowAdd(false);
+    fetchData();
+  }, [fetchData]);
 
-      setLoadingOptions(true);
-      Promise.all([getTeachers(), getSubjects(classItem.currentSemester)])
-        .then(([teacherResponse, subjectResponse]) => {
-          setTeachers(teacherResponse.data || []);
-          setSubjects(subjectResponse.data || []);
-        })
-        .catch(() => setAddError('Failed to load teachers or subjects. Please try again.'))
-        .finally(() => setLoadingOptions(false));
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData();
+  }, [fetchData]);
+
+  const programNameMap = new Map<string, string>();
+  programs.forEach((p) => programNameMap.set(p.id, p.name));
+
+  // Open New / Edit Class Sheet
+  const handleOpenNewClass = () => {
+    setEditingClass(null);
+    setFormDepartmentId(user?.departmentId || (departments[0]?.id ?? ''));
+    setFormProgramId(programs[0]?.id ?? '');
+    setFormYear(1);
+    setFormSemester(1);
+    setFormAcademicYear(currentAcademicYear());
+    setClassFormError(null);
+    setClassSheetVisible(true);
+  };
+
+  const handleOpenEditClass = (cls: ClassItem) => {
+    setEditingClass(cls);
+    setFormDepartmentId(cls.departmentId || user?.departmentId || '');
+    setFormProgramId(cls.programId || '');
+    setFormYear(cls.year);
+    setFormSemester(cls.currentSemester);
+    setFormAcademicYear(cls.academicYear);
+    setClassFormError(null);
+    setClassSheetVisible(true);
+  };
+
+  const handleSaveClass = async () => {
+    if (!formDepartmentId) {
+      setClassFormError('Please select a department.');
+      return;
     }
-  }, [visible, classItem, fetchTimetable]);
+    if (!formAcademicYear.trim()) {
+      setClassFormError('Academic year is required.');
+      return;
+    }
+    setClassFormSubmitting(true);
+    setClassFormError(null);
+    try {
+      const payload: CreateClassPayload = {
+        departmentId: formDepartmentId.trim(),
+        year: formYear,
+        academicYear: formAcademicYear.trim(),
+        currentSemester: formSemester,
+        ...(formProgramId ? { programId: formProgramId } : {}),
+      };
 
-  const handleDeleteSlot = (slot: TimetableSlot) => {
+      if (editingClass) {
+        await updateClass(editingClass.id, payload);
+      } else {
+        await createClass(payload);
+      }
+      setClassSheetVisible(false);
+      fetchData();
+    } catch (err: any) {
+      setClassFormError(
+        err?.response?.data?.message || 'Failed to save class. Please try again.'
+      );
+    } finally {
+      setClassFormSubmitting(false);
+    }
+  };
+
+  const handleDeleteClass = () => {
+    if (!editingClass) return;
     Alert.alert(
-      'Delete Slot',
-      `Delete Period ${slot.period} on ${DAYS_OF_WEEK.find((d) => d.day === slot.dayOfWeek)?.label || 'this day'}?`,
+      'Delete Class',
+      `Are you sure you want to delete this class? This will also remove its timetable.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -325,10 +199,11 @@ function ClassTimetableModal({ visible, onClose, classItem }: ClassTimetableModa
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteTimetable(slot.id);
-              setSlots((prev) => prev.filter((s) => s.id !== slot.id));
+              await deleteClass(editingClass.id);
+              setClassSheetVisible(false);
+              fetchData();
             } catch (err: any) {
-              Alert.alert('Error', err?.response?.data?.message || 'Failed to delete slot.');
+              Alert.alert('Error', err?.response?.data?.message || 'Could not delete class');
             }
           },
         },
@@ -336,65 +211,332 @@ function ClassTimetableModal({ visible, onClose, classItem }: ClassTimetableModa
     );
   };
 
-  const handleAddSlot = async () => {
-    if (!classItem) return;
-    if (!addSubject.trim()) {
-      setAddError('Please select a subject.');
+  // Timetable
+  const loadTimetableForClass = useCallback(async (cls: ClassItem) => {
+    setTimetableLoading(true);
+    try {
+      const res = await getClassTimetable(cls.id, cls.currentSemester);
+      setSlots(res.data || []);
+    } catch {
+      setSlots([]);
+    } finally {
+      setTimetableLoading(false);
+    }
+  }, []);
+
+  const handleOpenTimetable = (cls: ClassItem) => {
+    setSelectedClassForTimetable(cls);
+    setSelectedDay(1);
+    setTimetableSheetVisible(true);
+    loadTimetableForClass(cls);
+
+    // Fetch teachers & subjects for Add Period
+    Promise.all([
+      getTeachers().catch(() => ({ data: [] })),
+      getSubjects(cls.currentSemester).catch(() => ({ data: [] })),
+    ]).then(([tRes, sRes]) => {
+      setAvailableTeachers(tRes.data || []);
+      setAvailableSubjects(sRes.data || []);
+    });
+  };
+
+  const handleOpenAddPeriod = () => {
+    setAddPeriod(1);
+    setAddStartTime('09:00');
+    setAddEndTime('10:00');
+    setAddSubject(availableSubjects[0]?.id || '');
+    setAddTeacher(availableTeachers[0]?.id || '');
+    setAddSlotError(null);
+    setAddPeriodSheetVisible(true);
+  };
+
+  const handleSavePeriod = async () => {
+    if (!selectedClassForTimetable) return;
+    if (!addSubject) {
+      setAddSlotError('Please choose a subject.');
       return;
     }
-    if (!addTeacher.trim()) {
-      setAddError('Please select a teacher.');
+    if (!addTeacher) {
+      setAddSlotError('Please choose a teacher.');
       return;
     }
 
     setSavingSlot(true);
-    setAddError(null);
+    setAddSlotError(null);
     try {
       await createTimetable({
-        class: classItem.id,
-        semester: classItem.currentSemester,
+        class: selectedClassForTimetable.id,
+        semester: selectedClassForTimetable.currentSemester,
         dayOfWeek: selectedDay,
         period: addPeriod,
         startTime: addStartTime.trim(),
         endTime: addEndTime.trim(),
-        subject: addSubject.trim(),
-        teacher: addTeacher.trim(),
-        department: classItem.departmentId,
+        subject: addSubject,
+        teacher: addTeacher,
+        department: selectedClassForTimetable.departmentId,
       });
-      setShowAdd(false);
-      fetchTimetable();
+      setAddPeriodSheetVisible(false);
+      loadTimetableForClass(selectedClassForTimetable);
     } catch (err: any) {
-      setAddError(err?.response?.data?.message || 'Failed to create slot (check for schedule clashes).');
+      setAddSlotError(
+        err?.response?.data?.message || 'Could not save slot. Check for timing conflicts.'
+      );
     } finally {
       setSavingSlot(false);
     }
   };
 
-  if (!classItem) return null;
+  const handleDeleteSlot = (slot: TimetableSlot) => {
+    Alert.alert('Remove Period', `Remove Period ${slot.period} from timetable?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteTimetable(slot.id);
+            if (selectedClassForTimetable) {
+              loadTimetableForClass(selectedClassForTimetable);
+            }
+          } catch (err: any) {
+            Alert.alert('Error', err?.response?.data?.message || 'Could not remove period');
+          }
+        },
+      },
+    ]);
+  };
 
-  const currentSlots = slots
+  const daySlots = slots
     .filter((s) => s.dayOfWeek === selectedDay)
     .sort((a, b) => a.period - b.period);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { maxHeight: '85%' }]}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <View>
-              <Text style={styles.modalTitle}>Class Timetable</Text>
-              <Text style={styles.pageSubtitle}>
-                Year {classItem.year} · Sem {classItem.currentSemester} · {classItem.academicYear}
-              </Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.brand}
+          colors={[Colors.brand]}
+        />
+      }
+    >
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.title}>Classes</Text>
+          <Text style={styles.countText}>{classes.length} registered classes</Text>
+        </View>
+        {isHOD ? (
+          <Button
+            title="New class"
+            onPress={handleOpenNewClass}
+            size="sm"
+            style={styles.newClassBtn}
+            icon={<Ionicons name="add" size={18} color="#FFFFFF" />}
+            fullWidth={false}
+          />
+        ) : null}
+      </View>
+
+      {/* Class List */}
+      {loading ? (
+        <SkeletonList count={5} />
+      ) : error ? (
+        <View style={styles.errorCard}>
+          <Ionicons name="alert-circle-outline" size={32} color={Colors.absent} />
+          <Text style={styles.errorTitle}>Could not load classes</Text>
+          <Text style={styles.errorSub}>{error}</Text>
+          <Button title="Retry" onPress={fetchData} variant="outline" size="sm" />
+        </View>
+      ) : classes.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No classes registered</Text>
+          <Text style={styles.emptySub}>
+            Classes created by the HOD will appear here.
+          </Text>
+          {isHOD ? (
+            <Button
+              title="Create first class"
+              onPress={handleOpenNewClass}
+              size="sm"
+              style={styles.firstBtn}
+            />
+          ) : null}
+        </View>
+      ) : (
+        <View style={styles.listCard}>
+          {classes.map((cls, idx) => {
+            const isLast = idx === classes.length - 1;
+            const programName =
+              programNameMap.get(cls.programId) ||
+              (cls.departmentName ? `${cls.departmentName} Dept` : 'General Program');
+
+            return (
+              <View key={cls.id}>
+                <View style={styles.classRow}>
+                  <View style={styles.classInfo}>
+                    <Text style={styles.programName} numberOfLines={1}>
+                      {programName}
+                    </Text>
+                    <Text style={styles.classMeta}>
+                      Y{cls.year} · Sem {cls.currentSemester} · {cls.academicYear}
+                    </Text>
+                  </View>
+
+                  <View style={styles.actionsRow}>
+                    <TouchableOpacity
+                      style={styles.timetableBtn}
+                      onPress={() => handleOpenTimetable(cls)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.timetableBtnText}>Timetable</Text>
+                    </TouchableOpacity>
+
+                    {isHOD ? (
+                      <TouchableOpacity
+                        style={styles.editBtn}
+                        onPress={() => handleOpenEditClass(cls)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.editBtnText}>Edit</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                </View>
+
+                {!isLast ? <View style={styles.divider} /> : null}
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* ─── 1. New/Edit Class Sheet ─── */}
+      <Sheet
+        visible={classSheetVisible}
+        onClose={() => setClassSheetVisible(false)}
+        title={editingClass ? 'Edit Class' : 'New Class'}
+        subtitle="Manage academic class record"
+      >
+        <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
+          {classFormError ? (
+            <View style={styles.sheetErrorBox}>
+              <Ionicons name="alert-circle" size={16} color={Colors.absent} />
+              <Text style={styles.sheetErrorText}>{classFormError}</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
-            </TouchableOpacity>
+          ) : null}
+
+          {/* Program selection */}
+          <Text style={styles.fieldLabel}>PROGRAM</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScroll}
+          >
+            {programs.map((p) => {
+              const selected = formProgramId === p.id;
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[styles.chip, selected && styles.chipActive]}
+                  onPress={() => setFormProgramId(p.id)}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                    {p.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* Year selector */}
+          <Text style={styles.fieldLabel}>YEAR</Text>
+          <View style={styles.pillRow}>
+            {[1, 2, 3, 4, 5].map((y) => {
+              const selected = formYear === y;
+              return (
+                <TouchableOpacity
+                  key={y}
+                  style={[styles.pill, selected && styles.pillActive]}
+                  onPress={() => setFormYear(y)}
+                >
+                  <Text style={[styles.pillText, selected && styles.pillTextActive]}>
+                    Year {y}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          {/* Days bar */}
-          <View style={styles.daySelectorRow}>
+          {/* Semester selector */}
+          <Text style={styles.fieldLabel}>SEMESTER</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScroll}
+          >
+            {Array.from({ length: 8 }, (_, i) => i + 1).map((s) => {
+              const selected = formSemester === s;
+              return (
+                <TouchableOpacity
+                  key={s}
+                  style={[styles.pill, selected && styles.pillActive]}
+                  onPress={() => setFormSemester(s)}
+                >
+                  <Text style={[styles.pillText, selected && styles.pillTextActive]}>
+                    Sem {s}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* Academic Year */}
+          <Input
+            label="Academic year"
+            value={formAcademicYear}
+            onChangeText={setFormAcademicYear}
+            placeholder="e.g. 2026-27"
+          />
+
+          <View style={styles.sheetActionRow}>
+            <Button
+              title={editingClass ? 'Save Changes' : 'Create Class'}
+              onPress={handleSaveClass}
+              loading={classFormSubmitting}
+            />
+
+            {editingClass ? (
+              <TouchableOpacity
+                style={styles.deleteLink}
+                onPress={handleDeleteClass}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.deleteLinkText}>Delete Class</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </ScrollView>
+      </Sheet>
+
+      {/* ─── 2. Class Timetable Sheet ─── */}
+      <Sheet
+        visible={timetableSheetVisible}
+        onClose={() => setTimetableSheetVisible(false)}
+        title="Class Timetable"
+        subtitle={
+          selectedClassForTimetable
+            ? `${programNameMap.get(selectedClassForTimetable.programId) || 'Class'} · Sem ${selectedClassForTimetable.currentSemester}`
+            : ''
+        }
+      >
+        <View style={styles.timetableSheetBody}>
+          {/* Day Tabs Mon-Fri */}
+          <View style={styles.dayTabs}>
             {DAYS_OF_WEEK.map((d) => {
               const active = selectedDay === d.day;
               return (
@@ -402,7 +544,6 @@ function ClassTimetableModal({ visible, onClose, classItem }: ClassTimetableModa
                   key={d.day}
                   style={[styles.dayTab, active && styles.dayTabActive]}
                   onPress={() => setSelectedDay(d.day)}
-                  activeOpacity={0.7}
                 >
                   <Text style={[styles.dayTabText, active && styles.dayTabTextActive]}>
                     {d.label}
@@ -412,759 +553,544 @@ function ClassTimetableModal({ visible, onClose, classItem }: ClassTimetableModa
             })}
           </View>
 
-          {/* Add Slot Form or Slot List */}
-          {showAdd ? (
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-              <View style={styles.addSlotHeader}>
-                <Text style={styles.addSlotTitle}>
-                  Add Period for {DAYS_OF_WEEK.find((d) => d.day === selectedDay)?.full}
-                </Text>
-              </View>
+          <View style={styles.dayStatsRow}>
+            <Text style={styles.periodsCountLabel}>
+              {daySlots.length} periods on{' '}
+              {DAYS_OF_WEEK.find((d) => d.day === selectedDay)?.full}
+            </Text>
+            {isHOD ? (
+              <TouchableOpacity
+                style={styles.addPeriodOutlineBtn}
+                onPress={handleOpenAddPeriod}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={16} color={Colors.brand} />
+                <Text style={styles.addPeriodOutlineText}>Add period</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
 
-              <Text style={styles.fieldLabel}>Period Number (1 - 8)</Text>
-              <View style={styles.pillRow}>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => (
-                  <TouchableOpacity
-                    key={p}
-                    style={[styles.pill, addPeriod === p && styles.pillActive]}
-                    onPress={() => setAddPeriod(p)}
-                  >
-                    <Text style={[styles.pillText, addPeriod === p && styles.pillTextActive]}>
-                      P{p}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.row}>
-                <View style={styles.halfField}>
-                  <Text style={styles.fieldLabel}>Start Time (HH:mm)</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={addStartTime}
-                    onChangeText={setAddStartTime}
-                    placeholder="09:00"
-                    placeholderTextColor={Colors.textTertiary}
-                  />
-                </View>
-                <View style={styles.halfField}>
-                  <Text style={styles.fieldLabel}>End Time (HH:mm)</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={addEndTime}
-                    onChangeText={setAddEndTime}
-                    placeholder="10:00"
-                    placeholderTextColor={Colors.textTertiary}
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.fieldLabel}>Subject</Text>
-              {loadingOptions ? (
-                <ActivityIndicator size="small" color={Colors.primary} style={styles.optionLoader} />
-              ) : subjects.length === 0 ? (
-                <Text style={styles.optionEmptyText}>No subjects are available for this semester.</Text>
-              ) : (
-                <View style={styles.optionList}>
-                  {subjects.map((subject) => {
-                    const selected = addSubject === subject.id;
-                    return (
-                      <TouchableOpacity
-                        key={subject.id}
-                        style={[styles.optionChip, selected && styles.optionChipSelected]}
-                        onPress={() => setAddSubject(subject.id)}
-                      >
-                        <Text style={[styles.optionChipText, selected && styles.optionChipTextSelected]}>
-                          {subject.name}{subject.code ? ` (${subject.code})` : ''}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-
-              <Text style={styles.fieldLabel}>Teacher</Text>
-              {loadingOptions ? (
-                <ActivityIndicator size="small" color={Colors.primary} style={styles.optionLoader} />
-              ) : teachers.length === 0 ? (
-                <Text style={styles.optionEmptyText}>No active teachers are available in your department.</Text>
-              ) : (
-                <View style={styles.optionList}>
-                  {teachers.map((teacher) => {
-                    const selected = addTeacher === teacher.id;
-                    return (
-                      <TouchableOpacity
-                        key={teacher.id}
-                        style={[styles.optionChip, selected && styles.optionChipSelected]}
-                        onPress={() => setAddTeacher(teacher.id)}
-                      >
-                        <Text style={[styles.optionChipText, selected && styles.optionChipTextSelected]}>
-                          {teacher.name}{teacher.email ? ` · ${teacher.email}` : ''}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-
-              {addError && (
-                <View style={styles.formError}>
-                  <Ionicons name="alert-circle-outline" size={16} color={Colors.error} />
-                  <Text style={styles.formErrorText}>{addError}</Text>
-                </View>
-              )}
-
-              <View style={[styles.modalActions, { marginTop: Spacing.xl }]}>
-                <TouchableOpacity
-                  style={styles.cancelBtn}
-                  onPress={() => setShowAdd(false)}
-                >
-                  <Text style={styles.cancelBtnText}>Back</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.submitBtn, savingSlot && styles.submitBtnDisabled]}
-                  onPress={handleAddSlot}
-                  disabled={savingSlot}
-                >
-                  {savingSlot ? (
-                    <ActivityIndicator size="small" color={Colors.textInverse} />
-                  ) : (
-                    <Text style={styles.submitBtnText}>Save Slot</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
+          {/* Slots list */}
+          {timetableLoading ? (
+            <ActivityIndicator size="small" color={Colors.brand} style={{ margin: 20 }} />
+          ) : daySlots.length === 0 ? (
+            <View style={styles.emptyDayBox}>
+              <Text style={styles.emptyDayText}>
+                No periods scheduled on this day.
+              </Text>
+            </View>
           ) : (
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-              <View style={styles.slotListHeader}>
-                <Text style={styles.slotListHeaderText}>
-                  {currentSlots.length} slot{currentSlots.length !== 1 ? 's' : ''} on{' '}
-                  {DAYS_OF_WEEK.find((d) => d.day === selectedDay)?.full}
-                </Text>
-                <TouchableOpacity
-                  style={styles.addSlotBtn}
-                  onPress={() => {
-                    setAddError(null);
-                    setAddSubject('');
-                    setAddTeacher('');
-                    setShowAdd(true);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add" size={16} color={Colors.primary} />
-                  <Text style={styles.addSlotBtnText}>Add Slot</Text>
-                </TouchableOpacity>
-              </View>
-
-              {loading ? (
-                <View style={{ paddingVertical: Spacing['3xl'], alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                  <Text style={styles.loadingText}>Loading timetable...</Text>
-                </View>
-              ) : currentSlots.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="calendar-outline" size={36} color={Colors.textTertiary} />
-                  <Text style={styles.emptyTitle}>No slots scheduled</Text>
-                  <Text style={styles.emptySubtext}>
-                    No classes have been set up for {DAYS_OF_WEEK.find((d) => d.day === selectedDay)?.full}.
-                  </Text>
-                </View>
-              ) : (
-                currentSlots.map((slot) => {
+            <ScrollView style={styles.slotsScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.slotsCard}>
+                {daySlots.map((slot, sIdx) => {
+                  const isLastSlot = sIdx === daySlots.length - 1;
                   const subjectName =
-                    typeof slot.subject === 'object' && slot.subject?.name
-                      ? slot.subject.name
-                      : String(slot.subject || 'Subject');
+                    typeof slot.subject === 'object'
+                      ? slot.subject?.name
+                      : 'Subject';
                   const teacherName =
-                    typeof slot.teacher === 'object' && slot.teacher?.name
-                      ? slot.teacher.name
+                    typeof slot.teacher === 'object'
+                      ? slot.teacher?.name
                       : 'Teacher';
 
                   return (
-                    <View key={slot.id} style={styles.slotCard}>
-                      <View style={styles.slotCardLeft}>
-                        <View style={styles.slotPeriodBadge}>
-                          <Text style={styles.slotPeriodBadgeText}>P{slot.period}</Text>
-                        </View>
-                        <View>
-                          <Text style={styles.slotSubjectText}>{subjectName}</Text>
-                          <Text style={styles.slotSubText}>
-                            {slot.startTime} – {slot.endTime} · {teacherName}
+                    <View key={slot.id}>
+                      <View style={styles.slotRow}>
+                        <View style={styles.slotLeft}>
+                          <Text style={styles.slotPeriod}>P{slot.period}</Text>
+                          <Text style={styles.slotTime}>
+                            {slot.startTime}–{slot.endTime}
                           </Text>
                         </View>
+                        <View style={styles.slotMiddle}>
+                          <Text style={styles.slotSubject}>{subjectName}</Text>
+                          <Text style={styles.slotTeacher}>{teacherName}</Text>
+                        </View>
+                        {isHOD ? (
+                          <TouchableOpacity
+                            onPress={() => handleDeleteSlot(slot)}
+                            style={styles.removeSlotBtn}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Text style={styles.removeSlotText}>Remove</Text>
+                          </TouchableOpacity>
+                        ) : null}
                       </View>
-                      <TouchableOpacity
-                        style={styles.slotDeleteBtn}
-                        onPress={() => handleDeleteSlot(slot)}
-                      >
-                        <Ionicons name="trash-outline" size={16} color={Colors.error} />
-                      </TouchableOpacity>
+                      {!isLastSlot ? <View style={styles.divider} /> : null}
                     </View>
                   );
-                })
-              )}
+                })}
+              </View>
             </ScrollView>
           )}
         </View>
-      </View>
-    </Modal>
-  );
-}
+      </Sheet>
 
-// ─── Main Page ──────────────────────────────────────────
-export default function ClassesScreen() {
-  const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
-  const [timetableClass, setTimetableClass] = useState<ClassItem | null>(null);
-
-  const fetchClasses = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await getClasses();
-      setClasses(res.data);
-    } catch {
-      setError('Failed to load classes.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchClasses();
-  }, [fetchClasses]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchClasses();
-  };
-
-  const handleSaved = (cls: ClassItem, isEdit: boolean) => {
-    setClasses((prev) =>
-      isEdit ? prev.map((c) => (c.id === cls.id ? cls : c)) : [cls, ...prev]
-    );
-  };
-
-  const handleDelete = (cls: ClassItem) => {
-    Alert.alert(
-      'Delete Class',
-      `Delete Year ${cls.year} · Sem ${cls.currentSemester} · ${cls.academicYear}? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteClass(cls.id);
-              setClasses((prev) => prev.filter((c) => c.id !== cls.id));
-            } catch (err: any) {
-              Alert.alert('Error', err?.response?.data?.message || 'Failed to delete.');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleEdit = (cls: ClassItem) => {
-    setEditingClass(cls);
-    setShowForm(true);
-  };
-
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading classes...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <FormModal
-        visible={showForm}
-        onClose={() => {
-          setShowForm(false);
-          setEditingClass(null);
-        }}
-        editingClass={editingClass}
-        onSaved={handleSaved}
-      />
-
-      <ClassTimetableModal
-        visible={Boolean(timetableClass)}
-        classItem={timetableClass}
-        onClose={() => setTimetableClass(null)}
-      />
-
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
-        }
+      {/* ─── 3. Add Period Sheet ─── */}
+      <Sheet
+        visible={addPeriodSheetVisible}
+        onClose={() => setAddPeriodSheetVisible(false)}
+        title="Add Period"
+        subtitle={`Schedule on ${DAYS_OF_WEEK.find((d) => d.day === selectedDay)?.full}`}
       >
-        {/* Header */}
-        <View style={styles.pageHeader}>
-          <View>
-            <Text style={styles.pageTitle}>Classes</Text>
-            <Text style={styles.pageSubtitle}>
-              {classes.length} class{classes.length !== 1 ? 'es' : ''} total
-            </Text>
+        <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
+          {addSlotError ? (
+            <View style={styles.sheetErrorBox}>
+              <Ionicons name="alert-circle" size={16} color={Colors.absent} />
+              <Text style={styles.sheetErrorText}>{addSlotError}</Text>
+            </View>
+          ) : null}
+
+          {/* Period Pills P1 - P8 */}
+          <Text style={styles.fieldLabel}>PERIOD NUMBER (P1 – P8)</Text>
+          <View style={styles.pillRow}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => {
+              const selected = addPeriod === p;
+              return (
+                <TouchableOpacity
+                  key={p}
+                  style={[styles.pill, selected && styles.pillActive]}
+                  onPress={() => setAddPeriod(p)}
+                >
+                  <Text style={[styles.pillText, selected && styles.pillTextActive]}>
+                    P{p}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setShowForm(true)}
-            activeOpacity={0.8}
+
+          {/* Times */}
+          <View style={styles.timeInputsRow}>
+            <View style={{ flex: 1 }}>
+              <Input
+                label="Start time"
+                value={addStartTime}
+                onChangeText={setAddStartTime}
+                placeholder="09:00"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Input
+                label="End time"
+                value={addEndTime}
+                onChangeText={setAddEndTime}
+                placeholder="10:00"
+              />
+            </View>
+          </View>
+
+          {/* Subject selection */}
+          <Text style={styles.fieldLabel}>SUBJECT</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScroll}
           >
-            <Ionicons name="add" size={20} color={Colors.textInverse} />
-            <Text style={styles.addBtnText}>Add</Text>
-          </TouchableOpacity>
-        </View>
+            {availableSubjects.map((s) => {
+              const selected = addSubject === s.id;
+              return (
+                <TouchableOpacity
+                  key={s.id}
+                  style={[styles.chip, selected && styles.chipActive]}
+                  onPress={() => setAddSubject(s.id)}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                    {s.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
-        {/* Error */}
-        {error && (
-          <View style={styles.errorCard}>
-            <Ionicons name="alert-circle" size={20} color={Colors.error} />
-            <Text style={styles.errorCardText}>{error}</Text>
-            <TouchableOpacity onPress={fetchClasses}>
-              <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
+          {/* Teacher selection */}
+          <Text style={styles.fieldLabel}>FACULTY / TEACHER</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScroll}
+          >
+            {availableTeachers.map((t) => {
+              const selected = addTeacher === t.id;
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[styles.chip, selected && styles.chipActive]}
+                  onPress={() => setAddTeacher(t.id)}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                    {t.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.sheetActionRow}>
+            <Button
+              title="Save Period"
+              onPress={handleSavePeriod}
+              loading={savingSlot}
+            />
           </View>
-        )}
+        </ScrollView>
+      </Sheet>
 
-        {/* Empty */}
-        {!error && classes.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="school-outline" size={48} color={Colors.borderLight} />
-            <Text style={styles.emptyTitle}>No classes yet</Text>
-            <Text style={styles.emptySubtext}>Create your first class to get started</Text>
-            <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowForm(true)} activeOpacity={0.8}>
-              <Ionicons name="add" size={18} color={Colors.textInverse} />
-              <Text style={styles.emptyBtnText}>Add Class</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Class Cards */}
-        {classes.map((cls) => (
-          <View key={cls.id} style={styles.classCard}>
-            <View style={styles.classCardTop}>
-              <View style={styles.yearBadge}>
-                <Text style={styles.yearBadgeText}>Y{cls.year}</Text>
-              </View>
-              <View style={styles.semBadge}>
-                <Text style={styles.semBadgeText}>Sem {cls.currentSemester}</Text>
-              </View>
-              <View style={styles.ayBadge}>
-                <Text style={styles.ayBadgeText}>{cls.academicYear}</Text>
-              </View>
-            </View>
-
-            <Text style={styles.classCardDept}>
-              {cls.departmentName || cls.departmentId.slice(0, 12) + '…'}
-            </Text>
-            <Text style={styles.classCardDate}>Created {formatDate(cls.createdAt)}</Text>
-
-            <View style={styles.classCardActions}>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnTimetable]}
-                onPress={() => setTimetableClass(cls)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
-                <Text style={[styles.actionText, { color: Colors.primary }]}>Timetable</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(cls)} activeOpacity={0.7}>
-                <Ionicons name="create-outline" size={16} color={Colors.textSecondary} />
-                <Text style={[styles.actionText, { color: Colors.textSecondary }]}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(cls)} activeOpacity={0.7}>
-                <Ionicons name="trash-outline" size={16} color={Colors.error} />
-                <Text style={[styles.actionText, { color: Colors.error }]}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-
-        <View style={{ height: Spacing['3xl'] }} />
-      </ScrollView>
-    </View>
+      <View style={{ height: Spacing['2xl'] }} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: Spacing.lg },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
-  loadingText: { fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.textSecondary, marginTop: Spacing.md },
-
-  // Page header
-  pageHeader: {
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  content: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+  },
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
-  pageTitle: { fontSize: FontSize['2xl'], fontFamily: Fonts.extrabold, color: Colors.text },
-  pageSubtitle: { fontSize: FontSize.xs, fontFamily: Fonts.medium, color: Colors.textTertiary, marginTop: 2 },
-  addBtn: {
+  title: {
+    fontFamily: Fonts.heading,
+    fontSize: FontSize['3xl'],
+    color: Colors.ink,
+  },
+  countText: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    marginTop: 2,
+  },
+  newClassBtn: {
+    paddingHorizontal: Spacing.md,
+  },
+  listCard: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    overflow: 'hidden',
+  },
+  classRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.full,
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
+    minHeight: 64,
   },
-  addBtnText: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.text },
-
-  // Error
-  errorCard: {
+  classInfo: {
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  programName: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.base,
+    color: Colors.ink,
+  },
+  classMeta: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    marginTop: 2,
+  },
+  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.errorBg,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
   },
-  errorCardText: { flex: 1, fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.error },
-  retryText: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.primaryDark },
-
-  // Empty
-  emptyContainer: { alignItems: 'center', paddingVertical: Spacing['5xl'] },
-  emptyTitle: { fontSize: FontSize.base, fontFamily: Fonts.bold, color: Colors.text, marginTop: Spacing.lg },
-  emptySubtext: { fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.textTertiary, marginTop: Spacing.xs },
-  emptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    marginTop: Spacing.xl,
-  },
-  emptyBtnText: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.text },
-
-  // Class Card
-  classCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+  timetableBtn: {
     borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: '#1A1A1A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  classCardTop: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  yearBadge: {
-    backgroundColor: Colors.primaryMuted,
-    borderRadius: Radius.full,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 3,
-  },
-  yearBadgeText: { fontSize: FontSize.xs, fontFamily: Fonts.bold, color: Colors.primaryDark },
-  semBadge: {
-    backgroundColor: Colors.blueBg,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 3,
-  },
-  semBadgeText: { fontSize: FontSize.xs, fontFamily: Fonts.bold, color: Colors.blue },
-  ayBadge: {
-    backgroundColor: Colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 3,
-  },
-  ayBadgeText: { fontSize: FontSize.xs, fontFamily: Fonts.semibold, color: Colors.text },
-  classCardDept: { fontSize: FontSize.base, fontFamily: Fonts.bold, color: Colors.text, marginBottom: 2 },
-  classCardDate: { fontSize: FontSize.xs, fontFamily: Fonts.medium, color: Colors.textTertiary },
-  classCardActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-  },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  actionText: { fontSize: FontSize.sm, fontFamily: Fonts.bold },
-  optionList: { gap: Spacing.xs, marginBottom: Spacing.md },
-  optionChip: {
-    borderWidth: 1,
-    borderColor: Colors.border,
+    paddingVertical: 6,
     backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
   },
-  optionChipSelected: { borderColor: Colors.primary, backgroundColor: Colors.primaryMuted },
-  optionChipText: { fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.textSecondary },
-  optionChipTextSelected: { color: Colors.primaryDark, fontFamily: Fonts.bold },
-  optionEmptyText: { fontSize: FontSize.sm, color: Colors.textTertiary, marginBottom: Spacing.md },
-  optionLoader: { alignSelf: 'flex-start', marginBottom: Spacing.md },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    maxHeight: '85%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  modalTitle: { fontSize: FontSize.lg, fontFamily: Fonts.bold, color: Colors.text },
-  closeBtn: { padding: Spacing.xs },
-  modalBody: { padding: Spacing.xl },
-  modalActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    padding: Spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-  },
-  cancelBtn: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-  },
-  cancelBtnText: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.textSecondary },
-  submitBtn: {
-    flex: 1,
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-  },
-  submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { fontSize: FontSize.sm, fontFamily: Fonts.bold, color: Colors.text },
-
-  // Form fields
-  fieldLabel: {
+  timetableBtnText: {
+    fontFamily: Fonts.bodySemiBold,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.semibold,
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
+    color: Colors.brand,
   },
-  chipRow: {
+  editBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+  },
+  editBtnText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.line,
+    marginLeft: Spacing.lg,
+  },
+  emptyCard: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    padding: Spacing.xl,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: FontSize.lg,
+    color: Colors.ink,
+    marginBottom: Spacing.xs,
+  },
+  emptySub: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  firstBtn: {
+    minWidth: 160,
+  },
+  errorCard: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    padding: Spacing.xl,
+    alignItems: 'center',
+  },
+  errorTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: FontSize.lg,
+    color: Colors.ink,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  errorSub: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  sheetScroll: {
+    maxHeight: 480,
+  },
+  fieldLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    letterSpacing: 0.6,
+    marginBottom: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  chipScroll: {
     flexDirection: 'row',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   chip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.backgroundAlt,
     borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: Spacing.sm,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    marginRight: Spacing.xs,
+    backgroundColor: Colors.surface,
   },
   chipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.brand,
+    borderColor: Colors.brand,
   },
   chipText: {
+    fontFamily: Fonts.body,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
+    color: Colors.ink,
   },
   chipTextActive: {
-    color: Colors.text,
-    fontFamily: Fonts.bold,
+    color: '#FFFFFF',
+    fontFamily: Fonts.bodySemiBold,
   },
   pillRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.xs,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   pill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.background,
+    flex: 1,
     borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: Spacing.xs,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    paddingVertical: 8,
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
   },
   pillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.brand,
+    borderColor: Colors.brand,
   },
   pillText: {
+    fontFamily: Fonts.body,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
+    color: Colors.ink,
   },
   pillTextActive: {
-    color: Colors.text,
-    fontFamily: Fonts.bold,
+    color: '#FFFFFF',
+    fontFamily: Fonts.bodySemiBold,
   },
-  textInput: {
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.backgroundAlt,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    fontSize: FontSize.base,
-    fontFamily: Fonts.regular,
-    color: Colors.text,
+  sheetActionRow: {
+    marginTop: Spacing.md,
+    gap: Spacing.sm,
   },
-  row: { flexDirection: 'row', gap: Spacing.md },
-  halfField: { flex: 1 },
-  formError: {
+  deleteLink: {
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+  },
+  deleteLinkText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.absent,
+  },
+  sheetErrorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.errorBg,
-    borderRadius: Radius.sm,
-    padding: Spacing.md,
-    marginTop: Spacing.lg,
-  },
-  formErrorText: { flex: 1, fontSize: FontSize.sm, fontFamily: Fonts.medium, color: Colors.error },
-  daySelectorRow: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  dayTab: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.backgroundAlt,
+    backgroundColor: Colors.tintError,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  dayTabActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  dayTabText: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.semibold,
-    color: Colors.textSecondary,
-  },
-  dayTabTextActive: {
-    color: Colors.text,
-    fontFamily: Fonts.bold,
-  },
-  slotListHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderColor: '#ECC0BD',
+    borderRadius: Radius.base,
+    padding: Spacing.md,
     marginBottom: Spacing.md,
   },
-  slotListHeaderText: {
+  sheetErrorText: {
+    fontFamily: Fonts.body,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.semibold,
-    color: Colors.textTertiary,
-  },
-  addSlotBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.primaryMuted,
-  },
-  addSlotBtnText: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
-    color: Colors.primaryDark,
-  },
-  addSlotHeader: {
-    marginBottom: Spacing.md,
-  },
-  addSlotTitle: {
-    fontSize: FontSize.base,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-  },
-  slotCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: Colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  slotCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
+    color: Colors.absent,
     flex: 1,
   },
-  slotPeriodBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primaryMuted,
+  timetableSheetBody: {
+    paddingBottom: Spacing.lg,
+  },
+  dayTabs: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  dayTab: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    backgroundColor: Colors.surface,
   },
-  slotPeriodBadgeText: {
+  dayTabActive: {
+    backgroundColor: Colors.brand,
+    borderColor: Colors.brand,
+  },
+  dayTabText: {
+    fontFamily: Fonts.bodySemiBold,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
-    color: Colors.primaryDark,
+    color: Colors.muted,
   },
-  slotSubjectText: {
+  dayTabTextActive: {
+    color: '#FFFFFF',
+  },
+  dayStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  periodsCountLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+  },
+  addPeriodOutlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  addPeriodOutlineText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.brand,
+  },
+  emptyDayBox: {
+    paddingVertical: Spacing.xl,
+    alignItems: 'center',
+  },
+  emptyDayText: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+  },
+  slotsScroll: {
+    maxHeight: 280,
+  },
+  slotsCard: {
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    overflow: 'hidden',
+    backgroundColor: Colors.surface,
+  },
+  slotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  slotLeft: {
+    width: 72,
+  },
+  slotPeriod: {
+    fontFamily: Fonts.bodySemiBold,
     fontSize: FontSize.sm,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
+    color: Colors.ink,
   },
-  slotSubText: {
+  slotTime: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    color: Colors.muted,
+  },
+  slotMiddle: {
+    flex: 1,
+    marginHorizontal: Spacing.sm,
+  },
+  slotSubject: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.ink,
+  },
+  slotTeacher: {
+    fontFamily: Fonts.body,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textTertiary,
-    marginTop: 2,
+    color: Colors.muted,
   },
-  slotDeleteBtn: {
-    padding: Spacing.xs,
+  removeSlotBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
   },
-  actionBtnTimetable: {
-    backgroundColor: Colors.primaryBg,
+  removeSlotText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.absent,
+  },
+  timeInputsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
   },
 });

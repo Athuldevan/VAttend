@@ -20,6 +20,7 @@ export const attendanceStatusSchema = z.enum([
 export const markAttendanceSchema = z.object({
   timetableSlotId: objectIdSchema,
   date: z.string().min(1, "Date is required"),
+  remarks: z.string().optional(),
   records: z
     .array(
       z.object({

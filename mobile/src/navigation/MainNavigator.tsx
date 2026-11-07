@@ -5,31 +5,36 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  Platform,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
-import TodayScreen from '../screens/TodayScreen';
+import TodayScreen, { type PeriodItem } from '../screens/TodayScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import ClassesScreen from '../screens/ClassesScreen';
+import ManageScreen, { type ManageSubScreen } from '../screens/ManageScreen';
 import DepartmentsScreen from '../screens/DepartmentsScreen';
-import MarkAttendanceScreen from '../screens/MarkAttendanceScreen';
-import TeachersScreen from '../screens/TeachersScreen';
+import ProgramsScreen from '../screens/ProgramsScreen';
 import SubjectsScreen from '../screens/SubjectsScreen';
+import TeachersScreen from '../screens/TeachersScreen';
+import MarkAttendanceScreen from '../screens/MarkAttendanceScreen';
+import TabBar, { type TabItem } from '../components/TabBar';
 
-export type TabKey = 'today' | 'dashboard' | 'classes' | 'departments' | 'teachers' | 'subjects';
+export type MainTabKey = 'today' | 'overview' | 'classes' | 'manage';
 
 interface ModalState {
   type: 'mark-attendance';
-  period: any;
+  period: PeriodItem;
 }
 
 export default function MainNavigator() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabKey>('today');
+  const isHOD = user?.role === 'ADMIN';
+
+  const [activeTab, setActiveTab] = useState<MainTabKey>('today');
+  const [activeSubScreen, setActiveSubScreen] = useState<ManageSubScreen | null>(null);
   const [activeModal, setActiveModal] = useState<ModalState | null>(null);
 
   const handleLogout = () => {
@@ -49,7 +54,7 @@ export default function MainNavigator() {
     );
   };
 
-  // If a modal screen is open, display it over the tabs
+  // Full-screen attendance modal
   if (activeModal?.type === 'mark-attendance') {
     return (
       <MarkAttendanceScreen
@@ -59,67 +64,97 @@ export default function MainNavigator() {
     );
   }
 
+  // Handle switching tabs
+  const handleSelectTab = (tabKey: string) => {
+    setActiveTab(tabKey as MainTabKey);
+    // If clicking away from manage, reset subscreen
+    if (tabKey !== 'manage') {
+      setActiveSubScreen(null);
+    }
+  };
+
   const renderScreen = () => {
     switch (activeTab) {
       case 'today':
         return (
           <TodayScreen
-            onSelectPeriod={(period: any) =>
+            onSelectPeriod={(period) =>
               setActiveModal({ type: 'mark-attendance', period })
             }
           />
         );
-      case 'dashboard':
+      case 'overview':
         return <DashboardScreen />;
       case 'classes':
         return <ClassesScreen />;
-      case 'departments':
-        return <DepartmentsScreen />;
-      case 'teachers':
-        return <TeachersScreen />;
-      case 'subjects':
-        return <SubjectsScreen />;
+      case 'manage':
+        if (activeSubScreen === 'departments') {
+          return <DepartmentsScreen onBack={() => setActiveSubScreen(null)} />;
+        }
+        if (activeSubScreen === 'programs') {
+          return <ProgramsScreen onBack={() => setActiveSubScreen(null)} />;
+        }
+        if (activeSubScreen === 'subjects') {
+          return <SubjectsScreen onBack={() => setActiveSubScreen(null)} />;
+        }
+        if (activeSubScreen === 'faculty') {
+          return <TeachersScreen onBack={() => setActiveSubScreen(null)} />;
+        }
+        return (
+          <ManageScreen
+            onNavigateSub={(sub) => setActiveSubScreen(sub)}
+          />
+        );
       default:
         return <TodayScreen />;
     }
   };
 
-  const tabs: Array<{
-    key: TabKey;
-    label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    activeIcon: keyof typeof Ionicons.glyphMap;
-    accentColor: string;
-    accentBg: string;
-  }> = [
-    { key: 'today', label: 'Today', icon: 'calendar-outline', activeIcon: 'calendar', accentColor: Colors.primary, accentBg: Colors.primaryMuted },
-    { key: 'dashboard', label: 'Overview', icon: 'pie-chart-outline', activeIcon: 'pie-chart', accentColor: Colors.blue, accentBg: Colors.blueBg },
-    { key: 'classes', label: 'Classes', icon: 'people-outline', activeIcon: 'people', accentColor: Colors.salmon, accentBg: Colors.salmonBg },
-    { key: 'subjects', label: 'Subjects', icon: 'book-outline', activeIcon: 'book', accentColor: Colors.purple, accentBg: Colors.purpleBg },
-    ...(user?.role === 'ADMIN'
+  // Tabs: Teachers see only Today and Overview; HOD sees all four.
+  const tabs: TabItem[] = [
+    {
+      key: 'today',
+      label: 'Today',
+      icon: 'calendar-outline',
+      activeIcon: 'calendar',
+    },
+    {
+      key: 'overview',
+      label: 'Overview',
+      icon: 'pie-chart-outline',
+      activeIcon: 'pie-chart',
+    },
+    ...(isHOD
       ? [
-          { key: 'departments' as TabKey, label: 'Dept', icon: 'business-outline' as keyof typeof Ionicons.glyphMap, activeIcon: 'business' as keyof typeof Ionicons.glyphMap, accentColor: Colors.success, accentBg: Colors.greenBg },
-          { key: 'teachers' as TabKey, label: 'Teachers', icon: 'person-add-outline' as keyof typeof Ionicons.glyphMap, activeIcon: 'person-add' as keyof typeof Ionicons.glyphMap, accentColor: Colors.primaryDark, accentBg: Colors.primaryBg },
+          {
+            key: 'classes',
+            label: 'Classes',
+            icon: 'school-outline' as keyof typeof Ionicons.glyphMap,
+            activeIcon: 'school' as keyof typeof Ionicons.glyphMap,
+          },
+          {
+            key: 'manage',
+            label: 'Manage',
+            icon: 'grid-outline' as keyof typeof Ionicons.glyphMap,
+            activeIcon: 'grid' as keyof typeof Ionicons.glyphMap,
+          },
         ]
       : []),
   ];
 
-  const activeTabInfo = tabs.find(t => t.key === activeTab);
+  const roleLabel = isHOD ? 'HOD' : 'Teacher';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="dark-content" />
 
-      {/* Top App Header */}
+      {/* Top Header */}
       <View style={styles.topHeader}>
         <View style={styles.brandRow}>
-          <View style={[styles.brandBadge, { backgroundColor: activeTabInfo?.accentColor || Colors.primary }]}>
-            <Ionicons name="school" size={15} color="#fff" />
-          </View>
           <View>
-            <Text style={styles.brandTitle}>AMS Portal</Text>
+            <Text style={styles.brandTitle}>AMS · Victoria College</Text>
             <Text style={styles.brandRole}>
-              {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Faculty'} · {user?.name || user?.email || 'Logged in'}
+              {roleLabel} · {user?.name || user?.email || 'Faculty'}
             </Text>
           </View>
         </View>
@@ -129,40 +164,19 @@ export default function MainNavigator() {
           onPress={handleLogout}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="log-out-outline" size={20} color={Colors.textSecondary} />
+          <Ionicons name="log-out-outline" size={18} color={Colors.muted} />
         </TouchableOpacity>
       </View>
 
-      {/* Main Body */}
+      {/* Screen Container */}
       <View style={styles.screenContainer}>{renderScreen()}</View>
 
-      {/* Floating Rounded Bottom Navigation Bar */}
-      <View style={styles.tabBarWrapper}>
-        <View style={styles.tabBar}>
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.key;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                style={styles.tabItem}
-                onPress={() => setActiveTab(tab.key)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.tabIconWrapper, isActive && { backgroundColor: tab.accentBg }]}>
-                  <Ionicons
-                    name={isActive ? tab.activeIcon : tab.icon}
-                    size={21}
-                    color={isActive ? tab.accentColor : Colors.textTertiary}
-                  />
-                </View>
-                <Text style={[styles.tabLabel, isActive && { color: tab.accentColor, fontFamily: Fonts.bold }]}>
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
+      {/* Bottom Tab Bar */}
+      <TabBar
+        tabs={tabs}
+        activeTab={activeTab}
+        onSelectTab={handleSelectTab}
+      />
     </SafeAreaView>
   );
 }
@@ -176,93 +190,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    borderBottomColor: Colors.line,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
     flex: 1,
   },
-  brandBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   brandTitle: {
-    fontSize: FontSize.base,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-    letterSpacing: 0.3,
+    fontFamily: Fonts.heading,
+    fontSize: FontSize.lg,
+    color: Colors.ink,
   },
   brandRole: {
-    fontSize: 11,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
     marginTop: 1,
   },
   logoutBtn: {
     width: 36,
     height: 36,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.backgroundAlt,
+    borderRadius: Radius.base,
+    borderWidth: 1,
+    borderColor: Colors.line,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
   screenContainer: {
     flex: 1,
-  },
-  tabBarWrapper: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Platform.OS === 'ios' ? Spacing.lg : Spacing.md,
-    paddingTop: Spacing.xs,
-    backgroundColor: Colors.background,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    borderRadius: Radius['2xl'],
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
-    shadowColor: '#1A1A1A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.xs,
-  },
-  tabIconWrapper: {
-    width: 40,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.lg,
-    marginBottom: 2,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontFamily: Fonts.medium,
-    color: Colors.textTertiary,
-    marginTop: 1,
-    letterSpacing: 0.2,
   },
 });

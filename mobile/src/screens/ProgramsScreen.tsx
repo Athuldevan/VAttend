@@ -6,14 +6,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
   TextInput,
-  Modal,
   Alert,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, FontSize, FontWeight, Fonts } from '../constants/theme';
+import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
 import {
   getPrograms,
   createProgram,
@@ -22,8 +19,22 @@ import {
   type CreateProgramPayload,
 } from '../api/programs';
 import { getDepartments, type Department } from '../api/departments';
+import { useAuth } from '../context/AuthContext';
+import Input from '../components/Input';
+import Button from '../components/Button';
+import Tag from '../components/Tag';
+import Sheet from '../components/Sheet';
+import SegmentedControl from '../components/SegmentedControl';
+import SkeletonList from '../components/Skeleton';
 
-export default function ProgramsScreen() {
+interface ProgramsScreenProps {
+  onBack?: () => void;
+}
+
+export default function ProgramsScreen({ onBack }: ProgramsScreenProps) {
+  const { user } = useAuth();
+  const isHOD = user?.role === 'ADMIN';
+
   const [programs, setPrograms] = useState<Program[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,8 +42,8 @@ export default function ProgramsScreen() {
   const [selectedDeptId, setSelectedDeptId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Modal State
-  const [modalVisible, setModalVisible] = useState(false);
+  // Sheet State
+  const [sheetVisible, setSheetVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formDeptId, setFormDeptId] = useState('');
   const [formName, setFormName] = useState('');
@@ -44,15 +55,16 @@ export default function ProgramsScreen() {
     try {
       const [progRes, deptRes] = await Promise.all([
         getPrograms(),
-        getDepartments(),
+        getDepartments().catch(() => ({ data: [] })),
       ]);
       setPrograms(progRes.data || []);
-      setDepartments(deptRes.data || []);
-      if (deptRes.data && deptRes.data.length > 0 && !formDeptId) {
-        setFormDeptId(deptRes.data[0].id);
+      const depts = deptRes.data || [];
+      setDepartments(depts);
+      if (depts.length > 0 && !formDeptId) {
+        setFormDeptId(depts[0].id);
       }
-    } catch (err: any) {
-      console.warn('Error fetching programs data:', err);
+    } catch {
+      // keep
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -92,7 +104,7 @@ export default function ProgramsScreen() {
         level: formLevel,
         durationYears: durationNum,
       });
-      setModalVisible(false);
+      setSheetVisible(false);
       setFormName('');
       setFormDuration('3');
       fetchData();
@@ -106,7 +118,7 @@ export default function ProgramsScreen() {
   const handleDelete = (prog: Program) => {
     Alert.alert(
       'Delete Program',
-      `Are you sure you want to delete "${prog.name}"?`,
+      `Are you sure you want to delete ${prog.name}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -115,9 +127,9 @@ export default function ProgramsScreen() {
           onPress: async () => {
             try {
               await deleteProgram(prog.id);
-              setPrograms((prev) => prev.filter((p) => p.id !== prog.id));
+              fetchData();
             } catch (err: any) {
-              Alert.alert('Error', err?.response?.data?.message || 'Failed to delete program.');
+              Alert.alert('Error', err?.response?.data?.message || 'Could not delete program');
             }
           },
         },
@@ -125,284 +137,269 @@ export default function ProgramsScreen() {
     );
   };
 
-  const deptMap = React.useMemo(() => {
-    const map = new Map<string, string>();
-    departments.forEach((d) => map.set(d.id, d.name));
-    return map;
-  }, [departments]);
+  // Filtered Programs
+  const filtered = programs.filter((p) => {
+    const matchesDept =
+      selectedDeptId === 'all' ||
+      (typeof p.departmentId === 'object'
+        ? (p.departmentId as any)._id === selectedDeptId
+        : p.departmentId === selectedDeptId);
 
-  const filteredPrograms = programs.filter((p) => {
-    const matchesDept = selectedDeptId === 'all' || p.departmentId === selectedDeptId;
     const matchesSearch =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.level.toLowerCase().includes(searchQuery.toLowerCase());
+
     return matchesDept && matchesSearch;
   });
 
   return (
     <View style={styles.container}>
-      {/* Top Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.pageTitle}>Academic Programs</Text>
-          <Text style={styles.pageSubtitle}>
-            {programs.length} programs registered across departments
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            setFormError('');
-            setModalVisible(true);
-          }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={20} color={Colors.textInverse} />
-          <Text style={styles.addButtonText}>Add</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={16} color={Colors.textTertiary} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search programs..."
-          placeholderTextColor={Colors.textTertiary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery ? (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={16} color={Colors.textTertiary} />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.brand}
+            colors={[Colors.brand]}
+          />
+        }
+      >
+        {onBack ? (
+          <TouchableOpacity
+            style={styles.backLink}
+            onPress={onBack}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={18} color={Colors.brand} />
+            <Text style={styles.backLinkText}>Manage</Text>
           </TouchableOpacity>
         ) : null}
-      </View>
 
-      {/* Department Filter Pills */}
-      <View style={styles.deptFilterWrapper}>
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.title}>Programs</Text>
+            <Text style={styles.subtitle}>
+              Academic degrees & curricula ({filtered.length} visible)
+            </Text>
+          </View>
+          {isHOD ? (
+            <Button
+              title="New program"
+              onPress={() => {
+                setFormError('');
+                setSheetVisible(true);
+              }}
+              size="sm"
+              icon={<Ionicons name="add" size={18} color="#FFFFFF" />}
+              fullWidth={false}
+            />
+          ) : null}
+        </View>
+
+        {/* Search */}
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={16} color={Colors.muted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search programs..."
+            placeholderTextColor={Colors.muted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={16} color={Colors.muted} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {/* Department Filter Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.deptFilterList}
+          style={styles.chipsScroll}
         >
           <TouchableOpacity
             style={[
-              styles.filterPill,
-              selectedDeptId === 'all' && styles.filterPillActive,
+              styles.filterChip,
+              selectedDeptId === 'all' && styles.filterChipActive,
             ]}
             onPress={() => setSelectedDeptId('all')}
           >
             <Text
               style={[
-                styles.filterPillText,
-                selectedDeptId === 'all' && styles.filterPillTextActive,
+                styles.filterChipText,
+                selectedDeptId === 'all' && styles.filterChipTextActive,
               ]}
             >
               All Departments
             </Text>
           </TouchableOpacity>
-          {departments.map((d) => (
-            <TouchableOpacity
-              key={d.id}
-              style={[
-                styles.filterPill,
-                selectedDeptId === d.id && styles.filterPillActive,
-              ]}
-              onPress={() => setSelectedDeptId(d.id)}
-            >
-              <Text
+          {departments.map((d) => {
+            const isSelected = selectedDeptId === d.id;
+            return (
+              <TouchableOpacity
+                key={d.id}
                 style={[
-                  styles.filterPillText,
-                  selectedDeptId === d.id && styles.filterPillTextActive,
+                  styles.filterChip,
+                  isSelected && styles.filterChipActive,
                 ]}
+                onPress={() => setSelectedDeptId(d.id)}
               >
-                {d.code || d.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    isSelected && styles.filterChipTextActive,
+                  ]}
+                >
+                  {d.code || d.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
-      </View>
 
-      {/* Programs List */}
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading programs...</Text>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={Colors.primary}
-              colors={[Colors.primary]}
-            />
-          }
-        >
-          {filteredPrograms.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Ionicons name="school-outline" size={44} color={Colors.primaryLight} />
-              <Text style={styles.emptyTitle}>No Programs Found</Text>
-              <Text style={styles.emptySubtext}>
-                {searchQuery || selectedDeptId !== 'all'
-                  ? 'Try adjusting your filters or search terms.'
-                  : 'Get started by creating your first academic program.'}
-              </Text>
-            </View>
-          ) : (
-            filteredPrograms.map((p) => {
-              const deptName = deptMap.get(p.departmentId) || 'Department';
-              const isUG = p.level === 'UG';
+        {/* Programs List */}
+        {loading ? (
+          <SkeletonList count={5} />
+        ) : filtered.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No programs found</Text>
+            <Text style={styles.emptySub}>
+              {searchQuery
+                ? 'No programs match your search criteria.'
+                : 'No programs registered in this department.'}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.listCard}>
+            {filtered.map((prog, index) => {
+              const isLast = index === filtered.length - 1;
+              const deptName =
+                typeof prog.departmentId === 'object'
+                  ? (prog.departmentId as any).name || (prog.departmentId as any).code
+                  : 'Dept';
 
               return (
-                <View key={p.id} style={styles.programCard}>
-                  <View style={styles.cardHeader}>
-                    <View style={styles.cardTitleBlock}>
-                      <View style={[styles.levelBadge, isUG ? styles.ugBadge : styles.pgBadge]}>
-                        <Text style={[styles.levelText, isUG ? styles.ugText : styles.pgText]}>
-                          {p.level}
-                        </Text>
+                <View key={prog.id}>
+                  <View style={styles.programRow}>
+                    <View style={styles.programInfo}>
+                      <View style={styles.programTitleRow}>
+                        <Text style={styles.programName}>{prog.name}</Text>
+                        <Tag
+                          label={prog.level}
+                          variant={prog.level === 'PG' ? 'brand' : 'neutral'}
+                        />
                       </View>
-                      <Text style={styles.progName}>{p.name}</Text>
+                      <Text style={styles.programMeta}>
+                        {deptName} · {prog.durationYears} {prog.durationYears === 1 ? 'Year' : 'Years'}
+                      </Text>
                     </View>
-                    <TouchableOpacity
-                      onPress={() => handleDelete(p)}
-                      style={styles.cardActionBtn}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="trash-outline" size={17} color={Colors.textTertiary} />
-                    </TouchableOpacity>
-                  </View>
 
-                  <View style={styles.cardMetaRow}>
-                    <View style={styles.metaItem}>
-                      <Ionicons name="business-outline" size={13} color={Colors.textTertiary} />
-                      <Text style={styles.metaText} numberOfLines={1}>{deptName}</Text>
-                    </View>
-                    <View style={styles.metaItem}>
-                      <Ionicons name="time-outline" size={13} color={Colors.textTertiary} />
-                      <Text style={styles.metaText}>{p.durationYears} {p.durationYears === 1 ? 'Year' : 'Years'}</Text>
-                    </View>
+                    {isHOD ? (
+                      <TouchableOpacity
+                        onPress={() => handleDelete(prog)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={styles.deleteBtn}
+                      >
+                        <Ionicons name="trash-outline" size={16} color={Colors.absent} />
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
+                  {!isLast ? <View style={styles.divider} /> : null}
                 </View>
               );
-            })
-          )}
-          <View style={{ height: Spacing['3xl'] }} />
-        </ScrollView>
-      )}
+            })}
+          </View>
+        )}
 
-      {/* Create Program Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Academic Program</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={22} color={Colors.text} />
-              </TouchableOpacity>
+        {/* New Program Sheet */}
+        <Sheet
+          visible={sheetVisible}
+          onClose={() => setSheetVisible(false)}
+          title="New Program"
+          subtitle="Add an academic degree program"
+        >
+          <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
+            {formError ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={16} color={Colors.absent} />
+                <Text style={styles.errorText}>{formError}</Text>
+              </View>
+            ) : null}
+
+            <Input
+              label="Program name"
+              value={formName}
+              onChangeText={(t) => {
+                setFormName(t);
+                if (formError) setFormError('');
+              }}
+              placeholder="e.g. B.Sc Computer Science"
+            />
+
+            <Text style={styles.fieldLabel}>ACADEMIC LEVEL</Text>
+            <SegmentedControl
+              options={[
+                { value: 'UG', label: 'Undergraduate (UG)' },
+                { value: 'PG', label: 'Postgraduate (PG)' },
+              ]}
+              value={formLevel}
+              onChange={(lvl) => setFormLevel(lvl as 'UG' | 'PG')}
+            />
+
+            <View style={{ marginTop: Spacing.md }}>
+              <Input
+                label="Duration in years"
+                value={formDuration}
+                onChangeText={setFormDuration}
+                keyboardType="number-pad"
+                placeholder="e.g. 3"
+              />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Department Picker */}
-              <Text style={styles.modalLabel}>Department</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.deptChoiceList}>
-                {departments.map((d) => (
+            <Text style={styles.fieldLabel}>DEPARTMENT</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipsScroll}
+            >
+              {departments.map((d) => {
+                const selected = formDeptId === d.id;
+                return (
                   <TouchableOpacity
                     key={d.id}
-                    style={[
-                      styles.deptChoiceChip,
-                      formDeptId === d.id && styles.deptChoiceChipActive,
-                    ]}
+                    style={[styles.filterChip, selected && styles.filterChipActive]}
                     onPress={() => setFormDeptId(d.id)}
                   >
                     <Text
                       style={[
-                        styles.deptChoiceText,
-                        formDeptId === d.id && styles.deptChoiceTextActive,
+                        styles.filterChipText,
+                        selected && styles.filterChipTextActive,
                       ]}
                     >
-                      {d.code || d.name}
+                      {d.name}
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {/* Program Name */}
-              <Text style={styles.modalLabel}>Program Name</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g. B.Sc Statistics"
-                placeholderTextColor={Colors.textTertiary}
-                value={formName}
-                onChangeText={setFormName}
-              />
-
-              {/* Level Segment */}
-              <Text style={styles.modalLabel}>Level</Text>
-              <View style={styles.levelSegment}>
-                {(['UG', 'PG'] as const).map((lvl) => (
-                  <TouchableOpacity
-                    key={lvl}
-                    style={[
-                      styles.levelOption,
-                      formLevel === lvl && styles.levelOptionActive,
-                    ]}
-                    onPress={() => {
-                      setFormLevel(lvl);
-                      setFormDuration(lvl === 'UG' ? '3' : '2');
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.levelOptionText,
-                        formLevel === lvl && styles.levelOptionTextActive,
-                      ]}
-                    >
-                      {lvl === 'UG' ? 'Undergraduate (UG)' : 'Postgraduate (PG)'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Duration Years */}
-              <Text style={styles.modalLabel}>Duration (Years)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="e.g. 3"
-                placeholderTextColor={Colors.textTertiary}
-                keyboardType="numeric"
-                value={formDuration}
-                onChangeText={setFormDuration}
-              />
-
-              {formError ? (
-                <View style={styles.errorBox}>
-                  <Ionicons name="alert-circle-outline" size={16} color={Colors.error} />
-                  <Text style={styles.errorText}>{formError}</Text>
-                </View>
-              ) : null}
-
-              <TouchableOpacity
-                style={[styles.saveBtn, submitting && styles.btnDisabled]}
-                onPress={handleCreate}
-                disabled={submitting}
-                activeOpacity={0.8}
-              >
-                {submitting ? (
-                  <ActivityIndicator color={Colors.textInverse} size="small" />
-                ) : (
-                  <Text style={styles.saveBtnText}>Create Program</Text>
-                )}
-              </TouchableOpacity>
+                );
+              })}
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+
+            <View style={{ marginTop: Spacing.md }}>
+              <Button
+                title="Create Program"
+                onPress={handleCreate}
+                loading={submitting}
+              />
+            </View>
+          </ScrollView>
+        </Sheet>
+
+        <View style={{ height: Spacing['2xl'] }} />
+      </ScrollView>
     </View>
   );
 }
@@ -412,204 +409,172 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  header: {
+  content: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+  },
+  backLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: Spacing.md,
+    alignSelf: 'flex-start',
+  },
+  backLinkText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.brand,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  title: {
+    fontFamily: Fonts.heading,
+    fontSize: FontSize['3xl'],
+    color: Colors.ink,
+  },
+  subtitle: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    marginTop: 2,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    paddingHorizontal: Spacing.md,
+    height: 44,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: FontSize.sm,
+    color: Colors.ink,
+  },
+  chipsScroll: {
+    flexDirection: 'row',
+    marginBottom: Spacing.lg,
+  },
+  filterChip: {
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    marginRight: Spacing.xs,
+    backgroundColor: Colors.surface,
+  },
+  filterChipActive: {
+    backgroundColor: Colors.brand,
+    borderColor: Colors.brand,
+  },
+  filterChipText: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.ink,
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.bodySemiBold,
+  },
+  listCard: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    overflow: 'hidden',
+  },
+  programRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingVertical: Spacing.md,
+    minHeight: 56,
   },
-  pageTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.text,
+  programInfo: {
+    flex: 1,
+    marginRight: Spacing.md,
   },
-  pageSubtitle: {
+  programTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  programName: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.base,
+    color: Colors.ink,
+  },
+  programMeta: {
+    fontFamily: Fonts.body,
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
+    color: Colors.muted,
     marginTop: 2,
   },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.md,
-    gap: 4,
+  deleteBtn: {
+    padding: Spacing.xs,
   },
-  addButtonText: {
-    color: Colors.textInverse,
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? Spacing.sm : 2,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    gap: Spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    color: Colors.text,
-  },
-  deptFilterWrapper: {
-    marginTop: Spacing.sm,
-  },
-  deptFilterList: {
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.xs,
-  },
-  filterPill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  filterPillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  filterPillText: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-  },
-  filterPillTextActive: {
-    color: Colors.text,
-    fontFamily: Fonts.bold,
-  },
-  listContent: {
-    padding: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  centerContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: Spacing.sm,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
+  divider: {
+    height: 1,
+    backgroundColor: Colors.line,
+    marginLeft: Spacing.lg,
   },
   emptyCard: {
     backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    padding: Spacing['3xl'],
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
-    marginTop: Spacing.xl,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    padding: Spacing.xl,
+    alignItems: 'center',
   },
   emptyTitle: {
-    fontSize: FontSize.base,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-    marginTop: Spacing.md,
-  },
-  emptySubtext: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  metaText: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-  },
-  modalTitle: {
+    fontFamily: Fonts.heading,
     fontSize: FontSize.lg,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-  },
-  modalLabel: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.semibold,
-    color: Colors.textSecondary,
+    color: Colors.ink,
     marginBottom: Spacing.xs,
-    marginTop: Spacing.md,
-    textTransform: 'uppercase',
   },
-  deptChoiceChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.full,
+  emptySub: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    textAlign: 'center',
+  },
+  sheetScroll: {
+    maxHeight: 460,
+  },
+  fieldLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    letterSpacing: 0.6,
+    marginBottom: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.tintError,
     borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: Spacing.xs,
-    backgroundColor: Colors.backgroundAlt,
-  },
-  deptChoiceChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  deptChoiceText: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-  },
-  deptChoiceTextActive: {
-    color: Colors.text,
-    fontFamily: Fonts.bold,
-  },
-  modalInput: {
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
+    borderColor: '#ECC0BD',
+    borderRadius: Radius.base,
     padding: Spacing.md,
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.regular,
-    color: Colors.text,
-    backgroundColor: Colors.backgroundAlt,
+    marginBottom: Spacing.md,
   },
-  levelOption: {
-    flex: 1,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    backgroundColor: Colors.backgroundAlt,
-  },
-  levelOptionActive: {
-    backgroundColor: Colors.primary,
-  },
-  levelOptionText: {
+  errorText: {
+    fontFamily: Fonts.body,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-  },
-  levelOptionTextActive: {
-    color: Colors.text,
-    fontFamily: Fonts.bold,
-  },
-  saveBtn: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.lg,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.xl,
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  saveBtnText: {
-    color: Colors.text,
-    fontFamily: Fonts.bold,
-    fontSize: FontSize.base,
+    color: Colors.absent,
+    flex: 1,
   },
 });
-

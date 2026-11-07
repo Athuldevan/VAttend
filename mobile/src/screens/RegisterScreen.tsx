@@ -6,16 +6,27 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Fonts, Radius, Spacing } from '../constants/theme';
-import { getRegistrationDepartments, type RegistrationDepartment, type RegistrationRole } from '../api/auth';
+import {
+  getRegistrationDepartments,
+  type RegistrationDepartment,
+  type RegistrationRole,
+} from '../api/auth';
 import { useAuth } from '../context/AuthContext';
+import Input from '../components/Input';
+import Button from '../components/Button';
+import SegmentedControl from '../components/SegmentedControl';
+import Tag from '../components/Tag';
 
-export default function RegisterScreen({ onBackToLogin }: { onBackToLogin: () => void }) {
+export default function RegisterScreen({
+  onBackToLogin,
+}: {
+  onBackToLogin: () => void;
+}) {
   const { register, registerWithDepartment } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -40,16 +51,26 @@ export default function RegisterScreen({ onBackToLogin }: { onBackToLogin: () =>
 
   const submit = async () => {
     setFieldErrors({});
-    if (!name.trim() || !email.trim() || !password || (!creatingDepartment && !departmentId)) {
+    if (
+      !name.trim() ||
+      !email.trim() ||
+      !password ||
+      (!creatingDepartment && !departmentId)
+    ) {
       setError('Please complete every field.');
       return;
     }
-    if (creatingDepartment && (!departmentName.trim() || !departmentCode.trim())) {
+    if (
+      creatingDepartment &&
+      (!departmentName.trim() || !departmentCode.trim())
+    ) {
       setError('Enter a department name and code.');
       return;
     }
     if (!/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{8,}$/.test(password)) {
-      setError('Password needs 8 characters, including uppercase, lowercase, and a number.');
+      setError(
+        'Password needs 8+ characters, including upper and lower case and a number.'
+      );
       return;
     }
     setError('');
@@ -61,24 +82,46 @@ export default function RegisterScreen({ onBackToLogin }: { onBackToLogin: () =>
           email: email.trim(),
           password,
           role,
-          department: { name: departmentName.trim(), code: departmentCode.trim() },
+          department: {
+            name: departmentName.trim(),
+            code: departmentCode.trim().toUpperCase(),
+          },
         });
       } else {
-        await register({ name: name.trim(), email: email.trim(), password, role, departmentId });
+        await register({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          role,
+          departmentId,
+        });
       }
     } catch (err: any) {
       const validationErrors = err?.response?.data?.errors;
       const nextFieldErrors = Array.isArray(validationErrors)
-        ? validationErrors.reduce((errors: Record<string, string>, item: { field?: string; message?: string }) => {
-            if (item.field && item.message) errors[item.field] = item.message;
-            return errors;
-          }, {})
+        ? validationErrors.reduce(
+            (
+              errors: Record<string, string>,
+              item: { field?: string; message?: string }
+            ) => {
+              if (item.field && item.message) errors[item.field] = item.message;
+              return errors;
+            },
+            {}
+          )
         : {};
       setFieldErrors(nextFieldErrors);
       const validationMessage = Array.isArray(validationErrors)
-        ? validationErrors.map((item: { message?: string }) => item.message).filter(Boolean).join(' ')
+        ? validationErrors
+            .map((item: { message?: string }) => item.message)
+            .filter(Boolean)
+            .join(' ')
         : '';
-      setError(validationMessage || err?.response?.data?.message || 'Could not create the account.');
+      setError(
+        validationMessage ||
+          err?.response?.data?.message ||
+          'Could not create the account.'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -86,87 +129,222 @@ export default function RegisterScreen({ onBackToLogin }: { onBackToLogin: () =>
 
   return (
     <View style={styles.root}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity style={styles.backButton} onPress={onBackToLogin}>
-            <Ionicons name="arrow-back" size={18} color={Colors.primary} />
-            <Text style={styles.backText}>Back to sign in</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Back button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={onBackToLogin}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={18} color={Colors.brand} />
+            <Text style={styles.backText}>Sign in</Text>
           </TouchableOpacity>
 
-          <View style={styles.card}>
+          <View style={styles.header}>
+            <Text style={styles.institution}>VICTORIA COLLEGE PALAKKAD</Text>
             <Text style={styles.title}>Create account</Text>
-            <Text style={styles.subtitle}>Register as an Admin or Teacher.</Text>
+            <Text style={styles.subtitle}>
+              Register as Teacher or Department Head (HOD)
+            </Text>
+          </View>
 
-            <Field label="Full name" value={name} onChangeText={setName} placeholder="Enter full name" error={fieldErrors.name} />
-            <Field label="Email address" value={email} onChangeText={setEmail} placeholder="name@example.com" email error={fieldErrors.email} />
-            <Field label="Password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secure error={fieldErrors.password} />
+          <View style={styles.card}>
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={16} color={Colors.absent} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
-            <Text style={styles.label}>Role</Text>
-            <View style={styles.roleRow}>
-              {(['TEACHER', 'ADMIN'] as RegistrationRole[]).map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  style={[styles.roleOption, role === item && styles.roleOptionSelected]}
-                  onPress={() => {
-                    setRole(item);
-                    if (item === 'TEACHER') {
-                      setCreatingDepartment(false);
-                    }
-                  }}
-                >
-                  <Text style={[styles.roleText, role === item && styles.roleTextSelected]}>
-                    {item === 'TEACHER' ? 'Teacher' : 'Admin'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <Input
+              label="Full name"
+              value={name}
+              onChangeText={(t) => {
+                setName(t);
+                if (error) setError('');
+              }}
+              placeholder="e.g. Dr. Rajesh K"
+              error={fieldErrors.name}
+            />
+
+            <Input
+              label="Email address"
+              value={email}
+              onChangeText={(t) => {
+                setEmail(t);
+                if (error) setError('');
+              }}
+              placeholder="name@victoriacollege.edu.in"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={fieldErrors.email}
+            />
+
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={(t) => {
+                setPassword(t);
+                if (error) setError('');
+              }}
+              placeholder="Min 8 characters"
+              secureTextEntry
+              hint="Hint: 8+ characters with uppercase, lowercase, and a number"
+              error={fieldErrors.password}
+            />
+
+            {/* Role Segmented */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>ROLE</Text>
+              <SegmentedControl
+                options={[
+                  { value: 'TEACHER', label: 'Teacher' },
+                  { value: 'ADMIN', label: 'HOD' },
+                ]}
+                value={role}
+                onChange={(newRole) => {
+                  setRole(newRole as RegistrationRole);
+                  if (newRole === 'TEACHER') {
+                    setCreatingDepartment(false);
+                  }
+                }}
+              />
             </View>
 
-            <Text style={styles.label}>Department</Text>
-            {role === 'ADMIN' ? (
-              <View style={styles.departmentModeRow}>
-                <TouchableOpacity
-                  style={[styles.modeOption, !creatingDepartment && styles.modeOptionSelected]}
-                  onPress={() => setCreatingDepartment(false)}
-                >
-                  <Text style={[styles.modeText, !creatingDepartment && styles.roleTextSelected]}>Select existing</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modeOption, creatingDepartment && styles.modeOptionSelected]}
-                  onPress={() => setCreatingDepartment(true)}
-                >
-                  <Text style={[styles.modeText, creatingDepartment && styles.roleTextSelected]}>Create new</Text>
-                </TouchableOpacity>
+            {/* Department Section */}
+            <View style={styles.section}>
+              <View style={styles.deptHeaderRow}>
+                <Text style={styles.sectionLabel}>DEPARTMENT</Text>
+                {role === 'ADMIN' ? (
+                  <View style={styles.deptToggleRow}>
+                    <TouchableOpacity
+                      onPress={() => setCreatingDepartment(false)}
+                      style={[
+                        styles.togglePill,
+                        !creatingDepartment && styles.togglePillActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.toggleText,
+                          !creatingDepartment && styles.toggleTextActive,
+                        ]}
+                      >
+                        Select existing
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setCreatingDepartment(true)}
+                      style={[
+                        styles.togglePill,
+                        creatingDepartment && styles.togglePillActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.toggleText,
+                          creatingDepartment && styles.toggleTextActive,
+                        ]}
+                      >
+                        Create new
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
               </View>
-            ) : (
-              <Text style={styles.subtitle}>Select the department registered by your HOD / Admin.</Text>
-            )}
-            {loadingDepartments ? (
-              <ActivityIndicator color={Colors.primary} style={styles.departmentLoader} />
-            ) : role === 'ADMIN' && creatingDepartment ? (
-              <>
-                <Field label="Department name" value={departmentName} onChangeText={setDepartmentName} placeholder="e.g. Computer Science" error={fieldErrors['department.name']} />
-                <Field label="Department code" value={departmentCode} onChangeText={setDepartmentCode} placeholder="e.g. CS" error={fieldErrors['department.code']} />
-              </>
-            ) : (
-              <View style={styles.departmentList}>
-                {departments.map((department) => (
-                  <TouchableOpacity
-                    key={department.id}
-                    style={[styles.departmentOption, departmentId === department.id && styles.departmentOptionSelected]}
-                    onPress={() => setDepartmentId(department.id)}
-                  >
-                    <Text style={[styles.departmentText, departmentId === department.id && styles.roleTextSelected]}>
-                      {department.name} ({department.code})
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <TouchableOpacity style={[styles.submit, submitting && styles.disabled]} onPress={submit} disabled={submitting}>
-              {submitting ? <ActivityIndicator color={Colors.textInverse} /> : <Text style={styles.submitText}>Create account</Text>}
-            </TouchableOpacity>
+              {loadingDepartments ? (
+                <View style={styles.loaderWrap}>
+                  <ActivityIndicator size="small" color={Colors.brand} />
+                  <Text style={styles.loaderText}>Loading departments...</Text>
+                </View>
+              ) : role === 'ADMIN' && creatingDepartment ? (
+                <View style={styles.newDeptBox}>
+                  <Input
+                    label="Department name"
+                    value={departmentName}
+                    onChangeText={setDepartmentName}
+                    placeholder="e.g. Computer Science"
+                    error={fieldErrors['department.name']}
+                  />
+                  <Input
+                    label="Department code"
+                    value={departmentCode}
+                    onChangeText={setDepartmentCode}
+                    placeholder="e.g. CS"
+                    autoCapitalize="characters"
+                    error={fieldErrors['department.code']}
+                  />
+                </View>
+              ) : (
+                <View style={styles.deptList}>
+                  {departments.length === 0 ? (
+                    <Text style={styles.emptyText}>
+                      No existing departments found.
+                    </Text>
+                  ) : (
+                    departments.map((dept) => {
+                      const isSelected = departmentId === dept.id;
+                      return (
+                        <TouchableOpacity
+                          key={dept.id}
+                          style={[
+                            styles.deptRow,
+                            isSelected && styles.deptRowSelected,
+                          ]}
+                          onPress={() => setDepartmentId(dept.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.deptInfo}>
+                            <Text
+                              style={[
+                                styles.deptName,
+                                isSelected && styles.deptNameSelected,
+                              ]}
+                            >
+                              {dept.name}
+                            </Text>
+                            <Text style={styles.deptCode}>({dept.code})</Text>
+                          </View>
+                          {isSelected ? (
+                            <Tag label="Selected" variant="brand" />
+                          ) : null}
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.submitWrap}>
+              <Button
+                title="Create account"
+                onPress={submit}
+                loading={submitting}
+                disabled={
+                  !name.trim() ||
+                  !email.trim() ||
+                  !password ||
+                  (!creatingDepartment && !departmentId)
+                }
+                disabledReason={
+                  !name.trim() || !email.trim() || !password
+                    ? 'Fill in required fields'
+                    : !creatingDepartment && !departmentId
+                    ? 'Select a department'
+                    : undefined
+                }
+              />
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -174,57 +352,178 @@ export default function RegisterScreen({ onBackToLogin }: { onBackToLogin: () =>
   );
 }
 
-function Field({ label, value, onChangeText, placeholder, email, secure, error }: {
-  label: string; value: string; onChangeText: (value: string) => void; placeholder: string; email?: boolean; secure?: boolean; error?: string;
-}) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        style={[styles.input, error && styles.inputInvalid]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={Colors.textTertiary}
-        keyboardType={email ? 'email-address' : 'default'}
-        autoCapitalize={email ? 'none' : 'words'}
-        secureTextEntry={secure}
-      />
-      {error ? <Text style={styles.fieldError}>{error}</Text> : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.gradientStart },
-  flex: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', padding: Spacing.xl },
-  backButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.lg },
-  backText: { color: Colors.primary, fontFamily: Fonts.semibold, fontSize: FontSize.sm },
-  card: { backgroundColor: Colors.surface, padding: Spacing['2xl'], borderRadius: Radius.xl },
-  title: { color: Colors.text, fontFamily: Fonts.bold, fontSize: FontSize['2xl'] },
-  subtitle: { color: Colors.textSecondary, fontFamily: Fonts.regular, fontSize: FontSize.sm, marginTop: Spacing.xs, marginBottom: Spacing.xl },
-  field: { marginBottom: Spacing.md },
-  label: { color: Colors.textSecondary, fontFamily: Fonts.semibold, fontSize: FontSize.xs, marginBottom: Spacing.xs, textTransform: 'uppercase' },
-  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, backgroundColor: Colors.backgroundAlt, color: Colors.text, fontFamily: Fonts.regular, fontSize: FontSize.base, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md },
-  inputInvalid: { borderColor: Colors.error },
-  fieldError: { color: Colors.error, fontFamily: Fonts.medium, fontSize: FontSize.xs, marginTop: Spacing.xs },
-  roleRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  roleOption: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center' },
-  roleOptionSelected: { backgroundColor: Colors.primaryBg, borderColor: Colors.primary },
-  roleText: { color: Colors.textSecondary, fontFamily: Fonts.semibold, fontSize: FontSize.sm },
-  roleTextSelected: { color: Colors.primary, fontFamily: Fonts.bold },
-  departmentModeRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  modeOption: { flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
-  modeOptionSelected: { backgroundColor: Colors.primaryBg, borderColor: Colors.primary },
-  modeText: { color: Colors.textSecondary, fontFamily: Fonts.medium, fontSize: FontSize.xs },
-  departmentLoader: { alignSelf: 'flex-start', marginBottom: Spacing.lg },
-  departmentList: { gap: Spacing.xs, marginBottom: Spacing.lg },
-  departmentOption: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, padding: Spacing.md },
-  departmentOptionSelected: { backgroundColor: Colors.primaryBg, borderColor: Colors.primary },
-  departmentText: { color: Colors.textSecondary, fontFamily: Fonts.medium, fontSize: FontSize.sm },
-  error: { color: Colors.error, fontFamily: Fonts.medium, fontSize: FontSize.sm, marginBottom: Spacing.md },
-  submit: { alignItems: 'center', backgroundColor: Colors.primary, borderRadius: Radius.md, paddingVertical: Spacing.lg, marginTop: Spacing.sm },
-  disabled: { opacity: 0.6 },
-  submitText: { color: Colors.textInverse, fontFamily: Fonts.bold, fontSize: FontSize.base },
+  root: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  flex: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing['2xl'],
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: Spacing.lg,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.brand,
+  },
+  header: {
+    marginBottom: Spacing.lg,
+  },
+  institution: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    letterSpacing: 1.2,
+    marginBottom: Spacing.xs,
+  },
+  title: {
+    fontFamily: Fonts.heading,
+    fontSize: FontSize['3xl'],
+    color: Colors.ink,
+    lineHeight: 38,
+    marginBottom: Spacing.xs,
+  },
+  subtitle: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.sm,
+    color: Colors.muted,
+  },
+  card: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    padding: Spacing.xl,
+  },
+  section: {
+    marginBottom: Spacing.lg,
+  },
+  sectionLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    letterSpacing: 0.6,
+    marginBottom: Spacing.xs,
+  },
+  deptHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  deptToggleRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  togglePill: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.base,
+    borderWidth: 1,
+    borderColor: Colors.line,
+  },
+  togglePillActive: {
+    backgroundColor: Colors.brand,
+    borderColor: Colors.brand,
+  },
+  toggleText: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+  },
+  toggleTextActive: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.bodySemiBold,
+  },
+  loaderWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+  },
+  loaderText: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+  },
+  newDeptBox: {
+    marginTop: Spacing.xs,
+  },
+  deptList: {
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    overflow: 'hidden',
+    backgroundColor: Colors.surface,
+  },
+  deptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.line,
+    minHeight: 44,
+  },
+  deptRowSelected: {
+    backgroundColor: '#F7F9FC',
+  },
+  deptInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    flex: 1,
+  },
+  deptName: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.sm,
+    color: Colors.ink,
+  },
+  deptNameSelected: {
+    fontFamily: Fonts.bodySemiBold,
+    color: Colors.brand,
+  },
+  deptCode: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+  },
+  emptyText: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    padding: Spacing.md,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.tintError,
+    borderWidth: 1,
+    borderColor: '#ECC0BD',
+    borderRadius: Radius.base,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  errorText: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.absent,
+    flex: 1,
+  },
+  submitWrap: {
+    marginTop: Spacing.sm,
+  },
 });

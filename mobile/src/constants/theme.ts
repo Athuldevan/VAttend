@@ -1,58 +1,43 @@
 /**
- * AMS Design System — Redesigned with warm cream-to-green gradient palette
- * Primary: Amber #F5C26B, Background: cream #EEF3E2 → pale #F8F3E1
- * Accents: Salmon #F0926B, Blue #6C93F0, Purple #A020F0, Green #A8E0A0
+ * AMS Design System — Academic & Utilitarian (Victoria College Palakkad)
+ * Warm paper background, dark ink text, strong typography.
  */
 
 export const Colors = {
-  // Primary — Amber
-  primary: '#F5C26B',
-  primaryDark: '#E0A030',
-  primaryLight: '#FAD98D',
-  primaryMuted: '#FEF4DC',
-  primaryBg: '#FEF9ED',
+  // Base
+  background: "#F6F4EE",
+  surface: "#FFFFFF",
+  ink: "#12161C",
+  muted: "#5B6470",
+  line: "#DDD8CB",
 
-  // Accents
-  salmon: '#F0926B',
-  salmonBg: '#FEF0EB',
-  blue: '#6C93F0',
-  blueBg: '#EDF1FE',
-  purple: '#A020F0',
-  purpleBg: '#F5E6FE',
-  green: '#A8E0A0',
-  greenBg: '#EDF8EC',
+  // Brand & Actions
+  brand: "#1F3A5F",
+  brandHover: "#162A45",
 
-  // Background — soft cream gradient feel
-  background: '#F2F5E8',      // soft cream-green
-  backgroundAlt: '#F8F3E1',   // pale warm
-  gradientStart: '#EEF3E2',
-  gradientEnd: '#F8F3E1',
+  // Semantic status
+  present: "#2F7D5B",
+  late: "#8A5A0E",
+  absent: "#B13A35",
 
-  // Surface — cards
-  surface: '#FFFFFF',
-  surfaceElevated: '#FAFDF6',
-  border: '#E4EBDA',
-  borderLight: '#EDF2E6',
+  // Tints & backgrounds
+  tintOk: "#E4F0E9",
+  tintPending: "#F6EBD2",
+  tintError: "#F8E3E1",
+  tintNeutral: "#E9E5D9",
+  tintDisabled: "#D5D8DC",
 
-  // Text
-  text: '#1A1A1A',
-  textSecondary: '#6B6B6B',
-  textTertiary: '#A0A8A0',
-  textInverse: '#FFFFFF',
-
-  // Semantic
-  success: '#3DAA6E',
-  successBg: '#E8F6EF',
-  warning: '#D4841A',
-  warningBg: '#FEF5E3',
-  error: '#D44040',
-  errorBg: '#FDEEEE',
-  info: '#6C93F0',
-  infoBg: '#EDF1FE',
-
-  // Misc
-  overlay: 'rgba(26, 26, 26, 0.4)',
-  skeleton: '#E4EBDA',
+  // Compatibility aliases
+  text: "#12161C",
+  textSecondary: "#5B6470",
+  textTertiary: "#8D97A5",
+  textInverse: "#FFFFFF",
+  border: "#DDD8CB",
+  primary: "#1F3A5F",
+  success: "#2F7D5B",
+  warning: "#8A5A0E",
+  error: "#B13A35",
+  card: "#FFFFFF",
 };
 
 export const Spacing = {
@@ -60,19 +45,16 @@ export const Spacing = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 32,
-  '4xl': 40,
-  '5xl': 48,
+  xl: 24,
+  "2xl": 32,
 } as const;
 
 export const Radius = {
-  sm: 8,
-  md: 14,
-  lg: 18,
-  xl: 24,
-  '2xl': 32,
+  base: 6,
+  sm: 4,
+  md: 6,
+  lg: 6,
+  xl: 6,
   full: 999,
 } as const;
 
@@ -82,24 +64,20 @@ export const FontSize = {
   base: 15,
   lg: 17,
   xl: 20,
-  '2xl': 24,
-  '3xl': 28,
-  '4xl': 34,
+  "2xl": 24,
+  "3xl": 32,
+  "4xl": 44,
 } as const;
 
-export const FontWeight = {
-  regular: '400' as const,
-  medium: '500' as const,
-  semibold: '600' as const,
-  bold: '700' as const,
-  extrabold: '800' as const,
-};
-
-// Font families — using Urbanist from expo-google-fonts
 export const Fonts = {
-  regular: 'sans-serif',
-  medium: 'sans-serif',
-  semibold: 'sans-serif',
-  bold: 'sans-serif',
-  extrabold: 'sans-serif',
+  heading: "Newsreader_600SemiBold",
+  body: "PublicSans_400Regular",
+  bodySemiBold: "PublicSans_600SemiBold",
+
+  // Aliases for body & weights
+  regular: "PublicSans_400Regular",
+  medium: "PublicSans_400Regular",
+  semibold: "PublicSans_600SemiBold",
+  bold: "PublicSans_600SemiBold",
+  serif: "Newsreader_600SemiBold",
 };

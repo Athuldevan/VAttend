@@ -6,13 +6,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
 import { getMyTimetable, TimetableSlot } from '../api/timetable';
 import { getSlotAttendance } from '../api/attendance';
 import { useAuth } from '../context/AuthContext';
+import ProgressBar from '../components/ProgressBar';
+import Tag from '../components/Tag';
+import Button from '../components/Button';
+import SkeletonList from '../components/Skeleton';
 
 export interface PeriodItem {
   timetableSlotId: string;
@@ -82,14 +85,12 @@ const getRoom = (slot: TimetableSlot): string => {
   return dept ? `${dept} Dept` : `Room ${100 + slot.period}`;
 };
 
-// Period card accent colors cycling
-const PERIOD_ACCENTS = [
-  { left: Colors.primary, bg: Colors.primaryMuted },
-  { left: Colors.blue, bg: Colors.blueBg },
-  { left: Colors.salmon, bg: Colors.salmonBg },
-  { left: Colors.purple, bg: Colors.purpleBg },
-  { left: Colors.success, bg: Colors.greenBg },
-];
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning,';
+  if (h < 17) return 'Good afternoon,';
+  return 'Good evening,';
+}
 
 interface TodayScreenProps {
   onSelectPeriod?: (period: PeriodItem) => void;
@@ -200,7 +201,6 @@ export default function TodayScreen({ onSelectPeriod }: TodayScreenProps) {
 
   const totalClasses = daySlots.length;
   const markedClasses = daySlots.filter((p) => p.isMarked).length;
-  const unmarkedClasses = totalClasses - markedClasses;
 
   const todayFormatted = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -212,6 +212,9 @@ export default function TodayScreen({ onSelectPeriod }: TodayScreenProps) {
   const currentDayInfo = DAYS.find((d) => d.day === selectedDay);
   const greeting = getGreeting();
 
+  // Find the first pending period to feature "Mark attendance" button
+  let firstPendingFound = false;
+
   return (
     <ScrollView
       style={styles.container}
@@ -221,225 +224,161 @@ export default function TodayScreen({ onSelectPeriod }: TodayScreenProps) {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor={Colors.primary}
-          colors={[Colors.primary]}
+          tintColor={Colors.brand}
+          colors={[Colors.brand]}
         />
       }
     >
-      {/* Header Banner */}
-      <View style={styles.banner}>
-        <Text style={styles.greeting}>{greeting}</Text>
-        <Text style={styles.userName}>{user?.name || 'Teacher'} 👋</Text>
-        <Text style={styles.bannerDate}>{todayFormatted}</Text>
-      </View>
+      {/* Date label */}
+      <Text style={styles.dateLabel}>{todayFormatted.toUpperCase()}</Text>
 
-      {/* Stat Summary Cards */}
-      <View style={styles.statsRow}>
-        <StatCard
-          icon="calendar"
-          label="Total"
-          value={totalClasses}
-          color={Colors.blue}
-          bg={Colors.blueBg}
-        />
-        <StatCard
-          icon="checkmark-circle"
-          label="Marked"
-          value={markedClasses}
-          color={Colors.success}
-          bg={Colors.successBg}
-        />
-        <StatCard
-          icon="time"
-          label="Pending"
-          value={unmarkedClasses}
-          color={Colors.salmon}
-          bg={Colors.salmonBg}
-        />
-      </View>
+      {/* Greeting (no emoji) */}
+      <Text style={styles.heading}>
+        {greeting} {user?.name ? user.name : 'Faculty'}
+      </Text>
 
-      {/* Weekday Selector */}
-      <View style={styles.daySelectorContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.daySelectorScroll}
-        >
-          {DAYS.map((item) => {
-            const isSelected = selectedDay === item.day;
-            const isToday = todayActualDay === item.day;
+      {/* Progress bar */}
+      <ProgressBar
+        current={markedClasses}
+        total={totalClasses}
+        label={`${markedClasses} of ${totalClasses} periods marked`}
+      />
 
-            return (
-              <TouchableOpacity
-                key={item.day}
-                style={[styles.dayPill, isSelected && styles.dayPillActive]}
-                onPress={() => setSelectedDay(item.day)}
-                activeOpacity={0.75}
+      {/* Day Selector (Mon-Fri) */}
+      <View style={styles.daySelector}>
+        {DAYS.map((item) => {
+          const isSelected = selectedDay === item.day;
+          const isToday = todayActualDay === item.day;
+
+          return (
+            <TouchableOpacity
+              key={item.day}
+              style={[
+                styles.dayPill,
+                isSelected && styles.dayPillSelected,
+              ]}
+              onPress={() => setSelectedDay(item.day)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.dayLabel,
+                  isSelected && styles.dayLabelSelected,
+                ]}
               >
-                <Text style={[styles.dayPillText, isSelected && styles.dayPillTextActive]}>
-                  {item.label}
-                </Text>
-                {isToday && (
-                  <View style={[styles.todayDot, isSelected && styles.todayDotActive]} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                {item.label}
+              </Text>
+              {isToday ? (
+                <View
+                  style={[
+                    styles.todayDot,
+                    isSelected && styles.todayDotSelected,
+                  ]}
+                />
+              ) : null}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {/* Section Header */}
+      {/* ONE bordered list of periods separated by dividers */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>
           {currentDayInfo?.full || 'Daily'} Schedule
         </Text>
-        <View style={styles.sessionCountBadge}>
-          <Text style={styles.sectionCount}>{daySlots.length} sessions</Text>
-        </View>
+        <Text style={styles.sectionCount}>
+          {totalClasses} {totalClasses === 1 ? 'period' : 'periods'}
+        </Text>
       </View>
 
-      {/* Loading state */}
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Fetching your timetable...</Text>
-        </View>
+        <SkeletonList count={4} />
       ) : daySlots.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconWrap}>
-            <Ionicons name="calendar-clear-outline" size={40} color={Colors.primary} />
-          </View>
           <Text style={styles.emptyTitle}>
-            No Classes on {currentDayInfo?.full || 'this day'}
+            No classes on {currentDayInfo?.full || 'this day'}
           </Text>
           <Text style={styles.emptySubtext}>
-            You have no timetable periods for {currentDayInfo?.full}. Tap another day to view its schedule.
+            There are no timetable periods scheduled for {currentDayInfo?.full}.
           </Text>
-          <TouchableOpacity
-            style={styles.refreshBtn}
+          <Button
+            title="Reload schedule"
             onPress={fetchTimetable}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="refresh-outline" size={16} color={Colors.text} />
-            <Text style={styles.refreshBtnText}>Reload Schedule</Text>
-          </TouchableOpacity>
+            variant="outline"
+            size="sm"
+            style={styles.reloadBtn}
+          />
         </View>
       ) : (
-        daySlots.map((period, idx) => {
-          const accent = PERIOD_ACCENTS[idx % PERIOD_ACCENTS.length];
-          return (
-            <View key={period.timetableSlotId} style={styles.periodCard}>
-              {/* Colored left bar */}
-              <View style={[styles.periodLeftBar, { backgroundColor: accent.left }]} />
+        <View style={styles.periodListCard}>
+          {daySlots.map((period, index) => {
+            const isLast = index === daySlots.length - 1;
+            const isDone = period.isMarked;
+            const isNextPending = !isDone && !firstPendingFound;
+            if (isNextPending) firstPendingFound = true;
 
-              <View style={styles.periodContent}>
-                {/* Top row: period + status */}
-                <View style={styles.periodTop}>
-                  <View style={[styles.periodPill, { backgroundColor: accent.bg }]}>
-                    <Text style={[styles.periodLabel, { color: accent.left }]}>P{period.periodNumber}</Text>
-                    <Text style={[styles.timeText, { color: accent.left }]}>
-                      {period.startTime} – {period.endTime}
+            return (
+              <View key={period.timetableSlotId} style={styles.periodRowWrapper}>
+                <TouchableOpacity
+                  activeOpacity={isDone ? 0.7 : 1}
+                  onPress={() => {
+                    if (isDone) onSelectPeriod?.(period);
+                  }}
+                  style={styles.periodRow}
+                >
+                  {/* Left: Period Number + Time */}
+                  <View style={styles.leftCol}>
+                    <Text style={styles.periodNumText}>P{period.periodNumber}</Text>
+                    <Text style={styles.periodTimeText}>{period.startTime}</Text>
+                  </View>
+
+                  {/* Middle: Subject, Class, Room */}
+                  <View style={styles.middleCol}>
+                    <Text style={styles.subjectText} numberOfLines={1}>
+                      {period.subjectName}
                     </Text>
-                  </View>
-
-                  {period.isMarked ? (
-                    <View style={styles.statusDone}>
-                      <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
-                      <Text style={[styles.statusText, { color: Colors.success }]}>Done</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.statusPending}>
-                      <Ionicons name="time-outline" size={14} color={Colors.warning} />
-                      <Text style={[styles.statusText, { color: Colors.warning }]}>Pending</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Subject name */}
-                <Text style={styles.subjectName}>{period.subjectName}</Text>
-
-                {/* Meta row */}
-                <View style={styles.metaRow}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="people-outline" size={13} color={Colors.textTertiary} />
-                    <Text style={styles.metaText}>{period.className}</Text>
-                  </View>
-                  <View style={styles.metaDot} />
-                  <View style={styles.metaItem}>
-                    <Ionicons name="location-outline" size={13} color={Colors.textTertiary} />
-                    <Text style={styles.metaText}>{period.room}</Text>
-                  </View>
-                </View>
-
-                {/* Attendance Info / Action */}
-                {period.isMarked ? (
-                  <View style={styles.attendanceInfo}>
-                    <View style={styles.attendancePill}>
-                      <View style={[styles.attendanceDot, { backgroundColor: Colors.success }]} />
-                      <Text style={styles.attendanceText}>
-                        {period.presentCount ?? 0} present
+                    <Text style={styles.classRoomText} numberOfLines={1}>
+                      {period.className} · {period.room}
+                    </Text>
+                    {isDone ? (
+                      <Text style={styles.countsText}>
+                        {period.presentCount ?? 0} present, {period.absentCount ?? 0} absent
                       </Text>
-                      <View style={[styles.attendanceDot, { backgroundColor: Colors.error }]} />
-                      <Text style={styles.attendanceText}>
-                        {period.absentCount ?? 0} absent
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.editBtn}
-                      activeOpacity={0.7}
+                    ) : null}
+                  </View>
+
+                  {/* Right: Status Tag */}
+                  <View style={styles.rightCol}>
+                    <Tag
+                      label={isDone ? 'Done' : 'Pending'}
+                      variant={isDone ? 'done' : 'pending'}
+                    />
+                    {isDone ? (
+                      <Text style={styles.tapToEditText}>Tap to edit</Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+
+                {/* If next pending period, show full-width button inside row */}
+                {isNextPending ? (
+                  <View style={styles.markBtnWrap}>
+                    <Button
+                      title="Mark attendance"
                       onPress={() => onSelectPeriod?.(period)}
-                    >
-                      <Ionicons name="create-outline" size={14} color={Colors.blue} />
-                      <Text style={[styles.editBtnText, { color: Colors.blue }]}>Edit</Text>
-                    </TouchableOpacity>
+                      size="sm"
+                    />
                   </View>
-                ) : (
-                  <TouchableOpacity
-                    style={[styles.markBtn, { backgroundColor: accent.left }]}
-                    activeOpacity={0.85}
-                    onPress={() => onSelectPeriod?.(period)}
-                  >
-                    <Ionicons name="checkmark-done-outline" size={16} color="#fff" />
-                    <Text style={styles.markBtnText}>Mark Attendance</Text>
-                  </TouchableOpacity>
-                )}
+                ) : null}
+
+                {!isLast ? <View style={styles.divider} /> : null}
               </View>
-            </View>
-          );
-        })
+            );
+          })}
+        </View>
       )}
 
-      <View style={{ height: Spacing['4xl'] }} />
+      <View style={{ height: Spacing['2xl'] }} />
     </ScrollView>
-  );
-}
-
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning,';
-  if (h < 17) return 'Good afternoon,';
-  return 'Good evening,';
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  color,
-  bg,
-}: {
-  icon: string;
-  label: string;
-  value: number;
-  color: string;
-  bg: string;
-}) {
-  return (
-    <View style={[styles.statCard, { backgroundColor: bg }]}>
-      <Ionicons name={icon as any} size={20} color={color} />
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
   );
 }
 
@@ -449,328 +388,171 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   contentContainer: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.xl,
   },
-
-  // Banner
-  banner: {
-    marginBottom: Spacing.xl,
-  },
-  greeting: {
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-  },
-  userName: {
-    fontSize: FontSize['2xl'],
-    fontFamily: Fonts.extrabold,
-    color: Colors.text,
-    marginTop: 2,
-  },
-  bannerDate: {
+  dateLabel: {
+    fontFamily: Fonts.bodySemiBold,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textTertiary,
-    marginTop: 4,
+    color: Colors.muted,
+    letterSpacing: 1,
+    marginBottom: 2,
   },
-
-  // Stats Row
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    alignItems: 'center',
-    gap: 4,
-  },
-  statValue: {
-    fontSize: FontSize.xl,
-    fontFamily: Fonts.extrabold,
-  },
-  statLabel: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-  },
-
-  // Day Selector
-  daySelectorContainer: {
+  heading: {
+    fontFamily: Fonts.heading,
+    fontSize: FontSize['3xl'],
+    color: Colors.ink,
+    lineHeight: 38,
     marginBottom: Spacing.lg,
   },
-  daySelectorScroll: {
+  daySelector: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    paddingVertical: 2,
+    gap: Spacing.xs,
+    marginBottom: Spacing.xl,
   },
   dayPill: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 60,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    minHeight: 44,
   },
-  dayPillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+  dayPillSelected: {
+    backgroundColor: Colors.brand,
+    borderColor: Colors.brand,
   },
-  dayPillText: {
+  dayLabel: {
+    fontFamily: Fonts.bodySemiBold,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.semibold,
-    color: Colors.textSecondary,
+    color: Colors.muted,
   },
-  dayPillTextActive: {
-    color: Colors.text,
-    fontFamily: Fonts.bold,
+  dayLabelSelected: {
+    color: '#FFFFFF',
   },
   todayDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.brand,
     marginTop: 3,
   },
-  todayDotActive: {
-    backgroundColor: Colors.text,
+  todayDotSelected: {
+    backgroundColor: '#FFFFFF',
   },
-
-  // Section header
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  sectionTitle: {
-    fontSize: FontSize.lg,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-  },
-  sessionCountBadge: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  sectionCount: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.semibold,
-    color: Colors.textSecondary,
-  },
-
-  // Loading & Empty
-  loadingContainer: {
-    paddingVertical: Spacing['5xl'],
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-    marginTop: Spacing.md,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing['4xl'],
-    paddingHorizontal: Spacing.xl,
-  },
-  emptyIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
-  },
-  emptyTitle: {
-    fontSize: FontSize.base,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.regular,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-    lineHeight: 20,
-  },
-  refreshBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginTop: Spacing.xl,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.full,
-  },
-  refreshBtnText: {
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-  },
-
-  // Period Cards
-  periodCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.xl,
-    marginBottom: Spacing.md,
-    flexDirection: 'row',
-    overflow: 'hidden',
-    shadowColor: '#1A1A1A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  periodLeftBar: {
-    width: 4,
-    borderRadius: 4,
-    margin: 10,
-    marginRight: 0,
-    borderTopLeftRadius: 2,
-    borderBottomLeftRadius: 2,
-  },
-  periodContent: {
-    flex: 1,
-    padding: Spacing.lg,
-  },
-  periodTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'baseline',
     marginBottom: Spacing.sm,
   },
-  periodPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
+  sectionTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: FontSize.xl,
+    color: Colors.ink,
   },
-  periodLabel: {
+  sectionCount: {
+    fontFamily: Fonts.body,
     fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
+    color: Colors.muted,
   },
-  timeText: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.semibold,
+  periodListCard: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    overflow: 'hidden',
   },
-  statusDone: {
+  periodRowWrapper: {
+    backgroundColor: Colors.surface,
+  },
+  periodRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.successBg,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-  },
-  statusPending: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.warningBg,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-  },
-  statusText: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
-  },
-  subjectName: {
-    fontSize: FontSize.base,
-    fontFamily: Fonts.bold,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 4,
-    marginBottom: Spacing.xs,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  metaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: Colors.textTertiary,
-  },
-  metaText: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.medium,
-    color: Colors.textSecondary,
-  },
-  attendanceInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-  },
-  attendancePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  attendanceDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  attendanceText: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.semibold,
-    color: Colors.textSecondary,
-  },
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.blueBg,
-  },
-  editBtnText: {
-    fontSize: FontSize.xs,
-    fontFamily: Fonts.bold,
-  },
-  markBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    marginTop: Spacing.md,
+    minHeight: 64,
   },
-  markBtnText: {
+  leftCol: {
+    width: 68,
+  },
+  periodNumText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.base,
+    color: Colors.ink,
+  },
+  periodTimeText: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    marginTop: 2,
+  },
+  middleCol: {
+    flex: 1,
+    marginHorizontal: Spacing.sm,
+  },
+  subjectText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.base,
+    color: Colors.ink,
+    lineHeight: 20,
+  },
+  classRoomText: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.muted,
+    marginTop: 2,
+  },
+  countsText: {
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    color: Colors.present,
+    marginTop: 3,
+  },
+  rightCol: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  tapToEditText: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    color: Colors.muted,
+    marginTop: 4,
+  },
+  markBtnWrap: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.line,
+    marginLeft: Spacing.lg,
+  },
+  emptyContainer: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    padding: Spacing.xl,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontFamily: Fonts.heading,
+    fontSize: FontSize.lg,
+    color: Colors.ink,
+    marginBottom: Spacing.xs,
+  },
+  emptySubtext: {
+    fontFamily: Fonts.body,
     fontSize: FontSize.sm,
-    fontFamily: Fonts.bold,
-    color: '#fff',
+    color: Colors.muted,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  reloadBtn: {
+    minWidth: 160,
   },
 });
