@@ -12,7 +12,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
 import { getSubjects, createSubject, type SubjectOption } from '../api/subjects';
-import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Tag from '../components/Tag';
@@ -25,9 +24,6 @@ interface SubjectsScreenProps {
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
-  const { user } = useAuth();
-  const isHOD = user?.role === 'ADMIN';
-
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [selectedSemester, setSelectedSemester] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,8 +214,7 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
         )}
 
         {/* Add Subject Form */}
-        {isHOD ? (
-          <View style={styles.formCard}>
+        <View style={styles.formCard}>
             <Text style={styles.formTitle}>Add New Subject</Text>
             <Text style={styles.formSubtitle}>
               Create a new course catalog item for the curriculum.
@@ -289,8 +284,7 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
                 disabledReason={!newName.trim() ? 'Enter subject name' : undefined}
               />
             </View>
-          </View>
-        ) : null}
+        </View>
 
         <View style={{ height: Spacing['2xl'] }} />
       </ScrollView>

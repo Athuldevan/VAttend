@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet, StatusBar } from 'react-native';
-import { useFonts, Newsreader_600SemiBold } from '@expo-google-fonts/newsreader';
+import { useFonts } from 'expo-font';
+import { Newsreader_600SemiBold } from '@expo-google-fonts/newsreader';
 import {
   PublicSans_400Regular,
   PublicSans_600SemiBold,
 } from '@expo-google-fonts/public-sans';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import LoginScreen from './src/screens/LoginScreen';
@@ -43,13 +43,13 @@ function AppRoot() {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Newsreader_600SemiBold,
     PublicSans_400Regular,
     PublicSans_600SemiBold,
   });
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.brand} />
@@ -58,7 +58,7 @@ export default function App() {
   }
 
   return (
-    <GestureHandlerRootView style={styles.flex}>
+    <View style={styles.flex}>
       <SafeAreaProvider>
         <AuthProvider>
           <StatusBar barStyle="dark-content" />
@@ -66,7 +66,7 @@ export default function App() {
           <AppRoot />
         </AuthProvider>
       </SafeAreaProvider>
-    </GestureHandlerRootView>
+    </View>
   );
 }
 

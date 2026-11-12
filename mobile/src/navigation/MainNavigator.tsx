@@ -19,6 +19,7 @@ import DepartmentsScreen from '../screens/DepartmentsScreen';
 import ProgramsScreen from '../screens/ProgramsScreen';
 import SubjectsScreen from '../screens/SubjectsScreen';
 import TeachersScreen from '../screens/TeachersScreen';
+import StudentsScreen from '../screens/StudentsScreen';
 import MarkAttendanceScreen from '../screens/MarkAttendanceScreen';
 import TabBar, { type TabItem } from '../components/TabBar';
 
@@ -100,6 +101,9 @@ export default function MainNavigator() {
         if (activeSubScreen === 'faculty') {
           return <TeachersScreen onBack={() => setActiveSubScreen(null)} />;
         }
+        if (activeSubScreen === 'students') {
+          return <StudentsScreen onBack={() => setActiveSubScreen(null)} />;
+        }
         return (
           <ManageScreen
             onNavigateSub={(sub) => setActiveSubScreen(sub)}
@@ -110,7 +114,7 @@ export default function MainNavigator() {
     }
   };
 
-  // Tabs: Teachers see only Today and Overview; HOD sees all four.
+  // Tabs: Today, Overview, Classes, Manage accessible to faculty
   const tabs: TabItem[] = [
     {
       key: 'today',
@@ -124,22 +128,18 @@ export default function MainNavigator() {
       icon: 'pie-chart-outline',
       activeIcon: 'pie-chart',
     },
-    ...(isHOD
-      ? [
-          {
-            key: 'classes',
-            label: 'Classes',
-            icon: 'school-outline' as keyof typeof Ionicons.glyphMap,
-            activeIcon: 'school' as keyof typeof Ionicons.glyphMap,
-          },
-          {
-            key: 'manage',
-            label: 'Manage',
-            icon: 'grid-outline' as keyof typeof Ionicons.glyphMap,
-            activeIcon: 'grid' as keyof typeof Ionicons.glyphMap,
-          },
-        ]
-      : []),
+    {
+      key: 'classes',
+      label: 'Classes',
+      icon: 'school-outline',
+      activeIcon: 'school',
+    },
+    {
+      key: 'manage',
+      label: 'Manage',
+      icon: 'grid-outline',
+      activeIcon: 'grid',
+    },
   ];
 
   const roleLabel = isHOD ? 'HOD' : 'Teacher';

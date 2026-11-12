@@ -330,16 +330,14 @@ export default function ClassesScreen() {
           <Text style={styles.title}>Classes</Text>
           <Text style={styles.countText}>{classes.length} registered classes</Text>
         </View>
-        {isHOD ? (
-          <Button
-            title="New class"
-            onPress={handleOpenNewClass}
-            size="sm"
-            style={styles.newClassBtn}
-            icon={<Ionicons name="add" size={18} color="#FFFFFF" />}
-            fullWidth={false}
-          />
-        ) : null}
+        <Button
+          title="New class"
+          onPress={handleOpenNewClass}
+          size="sm"
+          style={styles.newClassBtn}
+          icon={<Ionicons name="add" size={18} color="#FFFFFF" />}
+          fullWidth={false}
+        />
       </View>
 
       {/* Class List */}
@@ -358,14 +356,12 @@ export default function ClassesScreen() {
           <Text style={styles.emptySub}>
             Classes created by the HOD will appear here.
           </Text>
-          {isHOD ? (
-            <Button
-              title="Create first class"
-              onPress={handleOpenNewClass}
-              size="sm"
-              style={styles.firstBtn}
-            />
-          ) : null}
+          <Button
+            title="Create first class"
+            onPress={handleOpenNewClass}
+            size="sm"
+            style={styles.firstBtn}
+          />
         </View>
       ) : (
         <View style={styles.listCard}>
@@ -396,15 +392,13 @@ export default function ClassesScreen() {
                       <Text style={styles.timetableBtnText}>Timetable</Text>
                     </TouchableOpacity>
 
-                    {isHOD ? (
-                      <TouchableOpacity
-                        style={styles.editBtn}
-                        onPress={() => handleOpenEditClass(cls)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.editBtnText}>Edit</Text>
-                      </TouchableOpacity>
-                    ) : null}
+                    <TouchableOpacity
+                      style={styles.editBtn}
+                      onPress={() => handleOpenEditClass(cls)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.editBtnText}>Edit</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -558,16 +552,14 @@ export default function ClassesScreen() {
               {daySlots.length} periods on{' '}
               {DAYS_OF_WEEK.find((d) => d.day === selectedDay)?.full}
             </Text>
-            {isHOD ? (
-              <TouchableOpacity
-                style={styles.addPeriodOutlineBtn}
-                onPress={handleOpenAddPeriod}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="add" size={16} color={Colors.brand} />
-                <Text style={styles.addPeriodOutlineText}>Add period</Text>
-              </TouchableOpacity>
-            ) : null}
+            <TouchableOpacity
+              style={styles.addPeriodOutlineBtn}
+              onPress={handleOpenAddPeriod}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add" size={16} color={Colors.brand} />
+              <Text style={styles.addPeriodOutlineText}>Add period</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Slots list */}
@@ -606,15 +598,13 @@ export default function ClassesScreen() {
                           <Text style={styles.slotSubject}>{subjectName}</Text>
                           <Text style={styles.slotTeacher}>{teacherName}</Text>
                         </View>
-                        {isHOD ? (
-                          <TouchableOpacity
-                            onPress={() => handleDeleteSlot(slot)}
-                            style={styles.removeSlotBtn}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          >
-                            <Text style={styles.removeSlotText}>Remove</Text>
-                          </TouchableOpacity>
-                        ) : null}
+                        <TouchableOpacity
+                          onPress={() => handleDeleteSlot(slot)}
+                          style={styles.removeSlotBtn}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={styles.removeSlotText}>Remove</Text>
+                        </TouchableOpacity>
                       </View>
                       {!isLastSlot ? <View style={styles.divider} /> : null}
                     </View>

@@ -48,8 +48,12 @@ export default function Button({
   const handlePressIn = () => {
     if (disabled || loading) return;
     try {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (
+        Platform.OS !== 'web' &&
+        Haptics &&
+        typeof Haptics.impactAsync === 'function'
+      ) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle?.Light);
       }
     } catch {
       // Ignore if haptics unavailable
@@ -201,4 +205,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

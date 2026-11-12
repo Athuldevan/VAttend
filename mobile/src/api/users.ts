@@ -10,6 +10,15 @@ export interface CreatedTeacher extends TeacherOption {
   emailSent?: boolean;
 }
 
+export interface StudentItem {
+  id: string;
+  name: string;
+  email: string;
+  rollNumber: number;
+  classId?: string;
+  isActive: boolean;
+}
+
 interface TeachersResponse {
   success: boolean;
   message: string;
@@ -29,5 +38,23 @@ export const createTeacher = async (payload: {
     "/users/teachers",
     payload,
   );
+  return response.data.data;
+};
+
+export const getStudents = async (classId?: string): Promise<{ data: StudentItem[] }> => {
+  const response = await axiosClient.get<{ data: StudentItem[] }>("/users/students", {
+    params: classId ? { classId } : {},
+  });
+  return response.data;
+};
+
+export const createStudent = async (payload: {
+  name: string;
+  email: string;
+  password: string;
+  rollNumber: number;
+  classId: string;
+}): Promise<StudentItem> => {
+  const response = await axiosClient.post<{ data: StudentItem }>("/users/students", payload);
   return response.data.data;
 };

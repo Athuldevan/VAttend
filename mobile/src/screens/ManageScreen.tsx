@@ -12,11 +12,11 @@ import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
 import { getDepartments } from '../api/departments';
 import { getPrograms } from '../api/programs';
 import { getSubjects } from '../api/subjects';
-import { getTeachers } from '../api/users';
+import { getTeachers, getStudents } from '../api/users';
 import ListRow from '../components/ListRow';
 import SkeletonList from '../components/Skeleton';
 
-export type ManageSubScreen = 'departments' | 'programs' | 'subjects' | 'faculty';
+export type ManageSubScreen = 'departments' | 'programs' | 'subjects' | 'faculty' | 'students';
 
 interface ManageScreenProps {
   onNavigateSub: (sub: ManageSubScreen) => void;
@@ -28,17 +28,19 @@ export default function ManageScreen({ onNavigateSub }: ManageScreenProps) {
     programs: 0,
     subjects: 0,
     faculty: 0,
+    students: 0,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchCounts = useCallback(async () => {
     try {
-      const [dRes, pRes, sRes, tRes] = await Promise.all([
+      const [dRes, pRes, sRes, tRes, studentRes] = await Promise.all([
         getDepartments().catch(() => ({ data: [] })),
         getPrograms().catch(() => ({ data: [] })),
         getSubjects().catch(() => ({ data: [] })),
         getTeachers().catch(() => ({ data: [] })),
+        getStudents().catch(() => ({ data: [] })),
       ]);
 
       setCounts({
@@ -46,6 +48,7 @@ export default function ManageScreen({ onNavigateSub }: ManageScreenProps) {
         programs: pRes.data?.length || 0,
         subjects: sRes.data?.length || 0,
         faculty: tRes.data?.length || 0,
+        students: studentRes.data?.length || 0,
       });
     } catch {
       // Keep existing counts
@@ -98,6 +101,13 @@ export default function ManageScreen({ onNavigateSub }: ManageScreenProps) {
       description: 'Teachers directory and email invitation portal',
       count: counts.faculty,
       icon: 'people-outline',
+    },
+    {
+      key: 'students',
+      title: 'Students',
+      description: 'Add and organize students by class and academic year',
+      count: counts.students,
+      icon: 'people-circle-outline',
     },
   ];
 

@@ -3,7 +3,7 @@ import * as SecureStore from "expo-secure-store";
 
 // Configure API Base URL via EXPO_PUBLIC_API_URL or fallback
 const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://172.26.167.82:4000/api/v1";
+process.env.EXPO_PUBLIC_API_URL || "http://10.181.146.82:4000/api/v1";
 
 export const API_BASE_URL = BASE_URL;
 

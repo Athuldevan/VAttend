@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, Fonts } from '../constants/theme';
@@ -8,17 +8,33 @@ export default function OfflineBanner() {
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      const offline = state.isConnected === false || state.isInternetReachable === false;
-      setIsOffline(offline);
-    });
+    try {
+      if (NetInfo && typeof NetInfo.addEventListener === 'function') {
+        const unsubscribe = NetInfo.addEventListener((state) => {
+          const offline =
+            state.isConnected === false || state.isInternetReachable === false;
+          setIsOffline(Boolean(offline));
+        });
 
-    NetInfo.fetch().then((state) => {
-      const offline = state.isConnected === false || state.isInternetReachable === false;
-      setIsOffline(offline);
-    });
+        if (typeof NetInfo.fetch === 'function') {
+          NetInfo.fetch()
+            .then((state) => {
+              const offline =
+                state.isConnected === false || state.isInternetReachable === false;
+              setIsOffline(Boolean(offline));
+            })
+            .catch(() => {});
+        }
 
-    return () => unsubscribe();
+        return () => {
+          if (typeof unsubscribe === 'function') {
+            unsubscribe();
+          }
+        };
+      }
+    } catch {
+      // NetInfo native listener unavailable in current environment
+    }
   }, []);
 
   if (!isOffline) return null;
@@ -51,4 +67,3 @@ const styles = StyleSheet.create({
     color: Colors.absent,
   },
 });
-

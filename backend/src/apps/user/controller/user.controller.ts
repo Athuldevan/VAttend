@@ -8,6 +8,7 @@ import { sendSuccess } from "../../../../utils/apiResponse.js";
 import { hashPassword } from "../../../../utils/password.js";
 import { sendTeacherInviteEmail } from "../../../../utils/email.service.js";
 import crypto from "crypto";
+import { Class } from "../../class/model/class.model.js";
 
 /** Returns active teachers that can be assigned to a timetable slot. */
 export const getTeachers = async (req: Request, res: Response) => {
@@ -117,4 +118,63 @@ export const createTeacher = async (req: Request, res: Response) => {
       emailSent,
     },
   );
+};
+
+/** Lists the signed-in faculty member's department students, optionally by class. */
+export const getStudents = async (req: Request, res: Response) => {
+  const departmentId = req.user?.departmentId;
+  if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
+
+  const classId = typeof req.query.classId === "string" ? req.query.classId : undefined;
+  const students = await User.find({
+    departmentId,
+    role: ROLES.STUDENT,
+    ...(classId ? { class: classId } : {}),
+  })
+    .select("name email rollNumber class isActive")
+    .sort({ rollNumber: 1, name: 1 })
+    .lean();
+
+  sendSuccess(res, HTTP_STATUS.OK, "Students fetched successfully", students.map((student) => ({
+    id: student._id.toString(),
+    name: student.name,
+    email: student.email,
+    rollNumber: student.rollNumber,
+    classId: student.class?.toString(),
+    isActive: student.isActive,
+  })));
+};
+
+/** Creates an active student account in a class belonging to the caller's department. */
+export const createStudent = async (req: Request, res: Response) => {
+  const departmentId = req.user?.departmentId;
+  if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
+
+  const { name, email, password, rollNumber, classId } = req.body as {
+    name: string; email: string; password: string; rollNumber: number; classId: string;
+  };
+  const classRecord = await Class.findOne({ _id: classId, departmentId });
+  if (!classRecord) {
+    throw new AppError("Choose a class from your department.", HTTP_STATUS.FORBIDDEN);
+  }
+  const existing = await User.findOne({ $or: [{ email: email.toLowerCase() }, { rollNumber }] });
+  if (existing) {
+    throw new AppError("A user with this email or roll number already exists.", HTTP_STATUS.CONFLICT);
+  }
+
+  const student = await User.create({
+    name,
+    email: email.toLowerCase(),
+    password: await hashPassword(password),
+    role: ROLES.STUDENT,
+    rollNumber,
+    class: classRecord._id,
+    departmentId,
+    isActive: true,
+  });
+
+  sendSuccess(res, HTTP_STATUS.CREATED, "Student added successfully", {
+    id: student._id.toString(), name: student.name, email: student.email,
+    rollNumber: student.rollNumber, classId: student.class?.toString(), isActive: student.isActive,
+  });
 };
