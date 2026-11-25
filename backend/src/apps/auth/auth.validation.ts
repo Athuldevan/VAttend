@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ROLES, PUBLIC_REGISTRABLE_ROLES } from "../../../constants/roles.js";
+import { ROLES } from "../../../constants/roles.js";
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
@@ -36,10 +36,6 @@ const newDepartmentSchema = z.object({
 });
 
 export const registerSchema = z.discriminatedUnion("role", [
-  commonRegisterSchema.extend({
-    role: z.literal(ROLES.STUDENT),
-    ...studentFieldsSchema.shape,
-  }),
   commonRegisterSchema.extend({
     role: z.literal(ROLES.TEACHER),
   }),

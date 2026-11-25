@@ -55,6 +55,18 @@ export const markAttendanceService = async (
     );
   }
 
+  const enrolledStudents = await User.find({
+    class: slot.class,
+    departmentId: slot.department,
+    role: ROLES.STUDENT,
+    isActive: true,
+  }).select("_id").lean();
+  const enrolledIds = new Set(enrolledStudents.map((student) => student._id.toString()));
+  const submittedIds = records.map((record) => record.studentId);
+  if (submittedIds.length !== enrolledIds.size || new Set(submittedIds).size !== submittedIds.length || submittedIds.some((id) => !enrolledIds.has(id))) {
+    throw new AppError("Attendance records must contain every active student in this class exactly once.", HTTP_STATUS.BAD_REQUEST);
+  }
+
   // If role is TEACHER, verify teacher owns this slot or is authorized
   if (userRole === ROLES.TEACHER) {
     if (slot.teacher.toString() !== userId) {

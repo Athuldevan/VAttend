@@ -51,10 +51,19 @@ export const getStudents = async (classId?: string): Promise<{ data: StudentItem
 export const createStudent = async (payload: {
   name: string;
   email: string;
-  password: string;
   rollNumber: number;
   classId: string;
 }): Promise<StudentItem> => {
   const response = await axiosClient.post<{ data: StudentItem }>("/users/students", payload);
+  return response.data.data;
+};
+
+export const updateStudent = async (id: string, payload: Partial<Pick<StudentItem, 'name' | 'email' | 'rollNumber' | 'classId' | 'isActive'>>) => {
+  const response = await axiosClient.patch<{ data: StudentItem }>(`/users/students/${id}`, payload);
+  return response.data.data;
+};
+
+export const deleteStudent = async (id: string) => {
+  const response = await axiosClient.delete<{ data: StudentItem }>(`/users/students/${id}`);
   return response.data.data;
 };

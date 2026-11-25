@@ -6,6 +6,7 @@ import type { RegisterInput, LoginInput, AuthTokens } from "../auth.types.js";
 import type { AuthUser } from "../../../shared/types/common.types.js";
 import { AppError } from "../../../../utils/AppError.js";
 import { HTTP_STATUS } from "../../../../utils/errorCodes.js";
+import { ROLES } from "../../../shared/constants/roles.js";
 import {
   hashPassword,
   comparePassword,
@@ -119,6 +120,10 @@ export async function login(input: LoginInput) {
       "Your account has been deactivated. Please contact an administrator.",
       HTTP_STATUS.FORBIDDEN,
     );
+  }
+
+  if (user.role === ROLES.STUDENT) {
+    throw new AppError("Student sign-in is not available. Attendance is managed by faculty.", HTTP_STATUS.FORBIDDEN);
   }
 
   const passwordMatch = await comparePassword(input.password, user.password);

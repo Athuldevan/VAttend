@@ -79,7 +79,7 @@ export default function Sheet({
       statusBarTranslucent
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
       >
         <TouchableWithoutFeedback onPress={onClose}>

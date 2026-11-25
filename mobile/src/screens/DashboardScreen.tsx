@@ -10,9 +10,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
 import { getClasses, ClassItem } from '../api/classes';
-import { getDefaulters, DefaulterStudent } from '../api/attendance';
+import { getDefaulters, getStudentSummary, DefaulterStudent } from '../api/attendance';
 import { getMyTimetable, TimetableSlot } from '../api/timetable';
 import { getPrograms, Program } from '../api/programs';
+import { getStudents } from '../api/users';
+import { useAuth } from '../context/AuthContext';
 import Tag from '../components/Tag';
 import Button from '../components/Button';
 import SkeletonList from '../components/Skeleton';
@@ -24,9 +26,10 @@ interface DefaulterItem extends DefaulterStudent {
 interface ClassAttendanceStat {
   classId: string;
   className: string;
-  percentage: number;
+  percentage: number | null;
   defaultersCount: number;
   totalStudents: number;
+  totalSessions: number;
 }
 
 export default function DashboardScreen() {
@@ -38,14 +41,15 @@ export default function DashboardScreen() {
   const [slotsList, setSlotsList] = useState<TimetableSlot[]>([]);
   const [defaulters, setDefaulters] = useState<DefaulterItem[]>([]);
   const [classStats, setClassStats] = useState<ClassAttendanceStat[]>([]);
-  const [overallWeeklyPercentage, setOverallWeeklyPercentage] = useState<number>(0);
+  const [overallAttendancePercentage, setOverallAttendancePercentage] = useState<number | null>(null);
+  const { user } = useAuth();
 
   const fetchData = useCallback(async () => {
     setError(null);
     try {
       // 1. Fetch classes, timetable slots, and programs in parallel
       const [classesRes, slotsRes, programsRes] = await Promise.all([
-        getClasses().catch(() => ({ data: [] })),
+        getClasses(user?.departmentId).catch(() => ({ data: [] })),
         getMyTimetable().catch(() => ({ data: [] })),
         getPrograms().catch(() => ({ data: [] })),
       ]);
@@ -82,26 +86,36 @@ export default function DashboardScreen() {
                   ...d,
                   className: clsName,
                 });
-                totalAttendedSum += d.effectiveAttended;
-                totalSessionsSum += d.totalSessions;
               });
             }
 
-            // Estimate class attendance percentage from defaulters / total students
-            const total = defData?.totalStudents || 0;
+            const studentRes = await getStudents(cls.id);
+            const studentSummaries = await Promise.all(
+              (studentRes.data || []).map((student) => getStudentSummary(student.id))
+            );
+            const classEffectiveAttended = studentSummaries.reduce(
+              (sum, response) => sum + response.data.overall.effectiveAttended,
+              0,
+            );
+            const classSessions = studentSummaries.reduce(
+              (sum, response) => sum + response.data.overall.total,
+              0,
+            );
+            const total = studentRes.data?.length || 0;
             const defCount = defData?.defaultersCount || 0;
-            const calculatedPercentage =
-              total > 0
-                ? Math.round(((total - defCount * 0.3) / total) * 100)
-                : 85;
 
             statsList.push({
               classId: cls.id,
               className: clsName,
-              percentage: Math.min(Math.max(calculatedPercentage, 40), 98),
+              percentage: classSessions > 0
+                ? Math.round((classEffectiveAttended / classSessions) * 100)
+                : null,
               defaultersCount: defCount,
               totalStudents: total,
+              totalSessions: classSessions,
             });
+            totalAttendedSum += classEffectiveAttended;
+            totalSessionsSum += classSessions;
           } catch {
             // Ignore individual class failure
           }
@@ -112,11 +126,11 @@ export default function DashboardScreen() {
       setClassStats(statsList);
 
       if (totalSessionsSum > 0) {
-        setOverallWeeklyPercentage(
+        setOverallAttendancePercentage(
           Math.round((totalAttendedSum / totalSessionsSum) * 100)
         );
       } else {
-        setOverallWeeklyPercentage(statsList.length > 0 ? 82 : 0);
+        setOverallAttendancePercentage(null);
       }
     } catch (err: any) {
       setError(err?.message || 'Failed to load overview data.');
@@ -124,7 +138,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.departmentId]);
 
   useEffect(() => {
     fetchData();
@@ -180,15 +194,17 @@ export default function DashboardScreen() {
           {/* Key Metric: Attendance Rate This Week */}
           <View style={styles.metricCard}>
             <View style={styles.metricTop}>
-              <Text style={styles.metricLabel}>ATTENDANCE RATE THIS WEEK</Text>
+              <Text style={styles.metricLabel}>ATTENDANCE RATE</Text>
               <Tag
-                label={overallWeeklyPercentage >= 75 ? 'Healthy' : 'Deficit'}
-                variant={overallWeeklyPercentage >= 75 ? 'done' : 'absent'}
+                label={overallAttendancePercentage === null ? 'No records' : overallAttendancePercentage >= 75 ? 'Healthy' : 'Deficit'}
+                variant={overallAttendancePercentage !== null && overallAttendancePercentage >= 75 ? 'done' : 'absent'}
               />
             </View>
-            <Text style={styles.metricValue}>{overallWeeklyPercentage}%</Text>
+            <Text style={styles.metricValue}>
+              {overallAttendancePercentage === null ? '—' : `${overallAttendancePercentage}%`}
+            </Text>
             <Text style={styles.metricSub}>
-              Calculated across active periods and recorded sessions
+              Calculated from recorded attendance sessions
             </Text>
           </View>
 
@@ -229,16 +245,18 @@ export default function DashboardScreen() {
                       <Text style={styles.barClassName} numberOfLines={1}>
                         {stat.className}
                       </Text>
-                      <Text style={styles.barPercent}>{stat.percentage}%</Text>
+                      <Text style={styles.barPercent}>
+                        {stat.percentage === null ? 'No records' : `${stat.percentage}%`}
+                      </Text>
                     </View>
                     <View style={styles.barTrack}>
                       <View
                         style={[
                           styles.barFill,
                           {
-                            width: `${stat.percentage}%`,
+                            width: `${stat.percentage || 0}%`,
                             backgroundColor:
-                              stat.percentage >= 75 ? Colors.brand : Colors.absent,
+                              (stat.percentage ?? 0) >= 75 ? Colors.brand : Colors.absent,
                           },
                         ]}
                       />

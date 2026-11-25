@@ -5,8 +5,8 @@ import app from "./app.js";
 connectDB();
 
 // ── Start server ────────────────────────────────────────────────
-const port = env.PORT;
+const port = Number(env.PORT);
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server is running on http://0.0.0.0:${port}`);
 });

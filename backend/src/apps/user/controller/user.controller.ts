@@ -129,6 +129,7 @@ export const getStudents = async (req: Request, res: Response) => {
   const students = await User.find({
     departmentId,
     role: ROLES.STUDENT,
+    isActive: true,
     ...(classId ? { class: classId } : {}),
   })
     .select("name email rollNumber class isActive")
@@ -150,8 +151,8 @@ export const createStudent = async (req: Request, res: Response) => {
   const departmentId = req.user?.departmentId;
   if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
 
-  const { name, email, password, rollNumber, classId } = req.body as {
-    name: string; email: string; password: string; rollNumber: number; classId: string;
+  const { name, email, rollNumber, classId } = req.body as {
+    name: string; email: string; rollNumber: number; classId: string;
   };
   const classRecord = await Class.findOne({ _id: classId, departmentId });
   if (!classRecord) {
@@ -165,7 +166,9 @@ export const createStudent = async (req: Request, res: Response) => {
   const student = await User.create({
     name,
     email: email.toLowerCase(),
-    password: await hashPassword(password),
+    // Students have no portal. This is an unshared random credential required
+    // by the legacy User schema and cannot be used to sign in.
+    password: await hashPassword(crypto.randomBytes(32).toString("hex")),
     role: ROLES.STUDENT,
     rollNumber,
     class: classRecord._id,
@@ -177,4 +180,52 @@ export const createStudent = async (req: Request, res: Response) => {
     id: student._id.toString(), name: student.name, email: student.email,
     rollNumber: student.rollNumber, classId: student.class?.toString(), isActive: student.isActive,
   });
+};
+
+const studentResponse = (student: any) => ({ id: student._id.toString(), name: student.name, email: student.email, rollNumber: student.rollNumber, classId: student.class?.toString(), isActive: student.isActive });
+
+const findDepartmentStudent = async (id: string, departmentId: string) => {
+  const student = await User.findOne({ _id: id, departmentId, role: ROLES.STUDENT });
+  if (!student) throw new AppError("Student not found in your department.", HTTP_STATUS.NOT_FOUND);
+  return student;
+};
+
+export const getStudent = async (req: Request, res: Response) => {
+  const departmentId = req.user?.departmentId;
+  if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
+  sendSuccess(res, HTTP_STATUS.OK, "Student fetched successfully", studentResponse(await findDepartmentStudent(req.params.id as string, departmentId)));
+};
+
+export const updateStudent = async (req: Request, res: Response) => {
+  const departmentId = req.user?.departmentId;
+  if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
+  const student = await findDepartmentStudent(req.params.id as string, departmentId);
+  const { name, email, rollNumber, classId, isActive } = req.body as { name?: string; email?: string; rollNumber?: number; classId?: string; isActive?: boolean };
+  if (classId) {
+    const classRecord = await Class.findOne({ _id: classId, departmentId });
+    if (!classRecord) throw new AppError("Choose a class from your department.", HTTP_STATUS.FORBIDDEN);
+    student.class = classRecord._id;
+  }
+  if (email && email !== student.email) {
+    if (await User.exists({ email: email.toLowerCase(), _id: { $ne: student._id } })) throw new AppError("A user with this email already exists.", HTTP_STATUS.CONFLICT);
+    student.email = email.toLowerCase();
+  }
+  if (rollNumber !== undefined && rollNumber !== student.rollNumber) {
+    if (await User.exists({ rollNumber, _id: { $ne: student._id } })) throw new AppError("A user with this roll number already exists.", HTTP_STATUS.CONFLICT);
+    student.rollNumber = rollNumber;
+  }
+  if (name !== undefined) student.name = name;
+  if (isActive !== undefined) student.isActive = isActive;
+  await student.save();
+  sendSuccess(res, HTTP_STATUS.OK, "Student updated successfully", studentResponse(student));
+};
+
+// Soft delete preserves existing attendance records for audits.
+export const deleteStudent = async (req: Request, res: Response) => {
+  const departmentId = req.user?.departmentId;
+  if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
+  const student = await findDepartmentStudent(req.params.id as string, departmentId);
+  student.isActive = false;
+  await student.save();
+  sendSuccess(res, HTTP_STATUS.OK, "Student deleted successfully", studentResponse(student));
 };

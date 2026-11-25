@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../../../middleware/auth.middleware.js";
 import { authorize } from "../../../middleware/authorize.middleware.js";
 import { ROLES } from "../../../shared/constants/roles.js";
-import { getTeachers, createTeacher, getStudents, createStudent } from "../controller/user.controller.js";
+import { getTeachers, createTeacher, getStudents, getStudent, createStudent, updateStudent, deleteStudent } from "../controller/user.controller.js";
 import { z } from "zod";
 import { validate } from "../../../middleware/validate.middleware.js";
 
@@ -36,11 +36,24 @@ router.post(
   validate(z.object({
     name: z.string().trim().min(2),
     email: z.string().trim().email().toLowerCase(),
-    password: z.string().min(5),
     rollNumber: z.coerce.number().int().positive(),
     classId: z.string().regex(/^[0-9a-fA-F]{24}$/, "classId must be a valid MongoDB ObjectId"),
   })),
   createStudent,
 );
+
+const studentIdParams = z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/, "id must be a valid MongoDB ObjectId") });
+
+router.get("/students/:id", authenticate, authorize(ROLES.ADMIN, ROLES.TEACHER), validate(studentIdParams, "params"), getStudent);
+router.patch(
+  "/students/:id", authenticate, authorize(ROLES.ADMIN, ROLES.TEACHER), validate(studentIdParams, "params"),
+  validate(z.object({
+    name: z.string().trim().min(2).optional(), email: z.string().trim().email().toLowerCase().optional(),
+    rollNumber: z.coerce.number().int().positive().optional(),
+    classId: z.string().regex(/^[0-9a-fA-F]{24}$/, "classId must be a valid MongoDB ObjectId").optional(),
+    isActive: z.boolean().optional(),
+  }).refine((value) => Object.keys(value).length > 0, "At least one field is required")), updateStudent,
+);
+router.delete("/students/:id", authenticate, authorize(ROLES.ADMIN, ROLES.TEACHER), validate(studentIdParams, "params"), deleteStudent);
 
 export default router;

@@ -52,6 +52,34 @@ const DAYS_OF_WEEK = [
   { day: 5, label: 'Fri', full: 'Friday' },
 ];
 
+const timeToMinutes = (time: string): number | null => {
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+};
+
+const minutesToTime = (minutes: number): string => {
+  const normalized = ((minutes % 1440) + 1440) % 1440;
+  return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
+};
+
+const suggestedPeriodTimes = (period: number, slots: TimetableSlot[]) => {
+  const previousSlot = slots.find((slot) => slot.period === period - 1);
+  const previousStart = previousSlot ? timeToMinutes(previousSlot.startTime) : null;
+  const previousEnd = previousSlot ? timeToMinutes(previousSlot.endTime) : null;
+
+  if (previousStart !== null && previousEnd !== null && previousEnd > previousStart) {
+    const duration = previousEnd - previousStart;
+    return {
+      startTime: minutesToTime(previousEnd),
+      endTime: minutesToTime(previousEnd + duration),
+    };
+  }
+
+  const start = 9 * 60 + (period - 1) * 60;
+  return { startTime: minutesToTime(start), endTime: minutesToTime(start + 60) };
+};
+
 export default function ClassesScreen() {
   const { user } = useAuth();
   const [classes, setClasses] = useState<ClassItem[]>([]);
@@ -241,9 +269,14 @@ export default function ClassesScreen() {
   };
 
   const handleOpenAddPeriod = () => {
-    setAddPeriod(1);
-    setAddStartTime('09:00');
-    setAddEndTime('10:00');
+    const firstAvailablePeriod = [1, 2, 3, 4, 5, 6, 7, 8].find(
+      (period) => !daySlots.some((slot) => slot.period === period),
+    );
+    const period = firstAvailablePeriod ?? 1;
+    const { startTime, endTime } = suggestedPeriodTimes(period, daySlots);
+    setAddPeriod(period);
+    setAddStartTime(startTime);
+    setAddEndTime(endTime);
     setAddSubject(availableSubjects[0]?.id || '');
     setAddTeacher(availableTeachers[0]?.id || '');
     setAddSlotError(null);
@@ -309,6 +342,7 @@ export default function ClassesScreen() {
   const daySlots = slots
     .filter((s) => s.dayOfWeek === selectedDay)
     .sort((a, b) => a.period - b.period);
+  const occupiedPeriods = new Set(daySlots.map((slot) => slot.period));
 
   return (
     <ScrollView
@@ -636,14 +670,31 @@ export default function ClassesScreen() {
           <View style={styles.pillRow}>
             {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => {
               const selected = addPeriod === p;
+              const occupied = occupiedPeriods.has(p);
               return (
                 <TouchableOpacity
                   key={p}
-                  style={[styles.pill, selected && styles.pillActive]}
-                  onPress={() => setAddPeriod(p)}
+                  disabled={occupied}
+                  style={[
+                    styles.pill,
+                    selected && styles.pillActive,
+                    occupied && styles.pillUnavailable,
+                  ]}
+                  onPress={() => {
+                    const { startTime, endTime } = suggestedPeriodTimes(p, daySlots);
+                    setAddPeriod(p);
+                    setAddStartTime(startTime);
+                    setAddEndTime(endTime);
+                  }}
                 >
-                  <Text style={[styles.pillText, selected && styles.pillTextActive]}>
-                    P{p}
+                  <Text
+                    style={[
+                      styles.pillText,
+                      selected && styles.pillTextActive,
+                      occupied && styles.pillTextUnavailable,
+                    ]}
+                  >
+                    P{p}{occupied ? ' ✓' : ''}
                   </Text>
                 </TouchableOpacity>
               );
@@ -669,6 +720,9 @@ export default function ClassesScreen() {
               />
             </View>
           </View>
+          <Text style={styles.timeHint}>
+            Times are suggested from the preceding period and can be edited.
+          </Text>
 
           {/* Subject selection */}
           <Text style={styles.fieldLabel}>SUBJECT</Text>
@@ -923,6 +977,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand,
     borderColor: Colors.brand,
   },
+  pillUnavailable: {
+    backgroundColor: Colors.tintNeutral,
+    borderColor: Colors.line,
+  },
   pillText: {
     fontFamily: Fonts.body,
     fontSize: FontSize.xs,
@@ -931,6 +989,9 @@ const styles = StyleSheet.create({
   pillTextActive: {
     color: '#FFFFFF',
     fontFamily: Fonts.bodySemiBold,
+  },
+  pillTextUnavailable: {
+    color: Colors.muted,
   },
   sheetActionRow: {
     marginTop: Spacing.md,
@@ -1082,5 +1143,11 @@ const styles = StyleSheet.create({
   timeInputsRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
+  },
+  timeHint: {
+    color: Colors.muted,
+    fontFamily: Fonts.body,
+    fontSize: FontSize.xs,
+    marginTop: Spacing.xs,
   },
 });
