@@ -33,7 +33,7 @@ interface ProgramsScreenProps {
 
 export default function ProgramsScreen({ onBack }: ProgramsScreenProps) {
   const { user } = useAuth();
-  const isHOD = user?.role === 'ADMIN';
+  const canManage = user?.role === 'ADMIN' || user?.role === 'TEACHER';
 
   const [programs, setPrograms] = useState<Program[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -185,7 +185,7 @@ export default function ProgramsScreen({ onBack }: ProgramsScreenProps) {
               Academic degrees & curricula ({filtered.length} visible)
             </Text>
           </View>
-          {isHOD ? (
+          {canManage ? (
             <Button
               title="New program"
               onPress={() => {
@@ -299,7 +299,7 @@ export default function ProgramsScreen({ onBack }: ProgramsScreenProps) {
                       </Text>
                     </View>
 
-                    {isHOD ? (
+                    {canManage ? (
                       <TouchableOpacity
                         onPress={() => handleDelete(prog)}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

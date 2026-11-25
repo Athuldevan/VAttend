@@ -12,6 +12,7 @@ import {
 import { authenticate } from "../../../middleware/auth.middleware.js";
 import { authorize } from "../../../middleware/authorize.middleware.js";
 import { validate } from "../../../middleware/validate.middleware.js";
+import { ROLES } from "../../../shared/constants/roles.js";
 
 import {
   createDepartmentSchema,
@@ -36,7 +37,7 @@ router.get(
 router.post(
   "/",
   authenticate,
-  authorize("ADMIN"),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(createDepartmentSchema),
   createDepartment,
 );
@@ -45,7 +46,7 @@ router.post(
 router.patch(
   "/:id",
   authenticate,
-  authorize("ADMIN"),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(departmentIdParamSchema),
   validate(updateDepartmentSchema),
   updateDepartment,
@@ -55,7 +56,7 @@ router.patch(
 router.delete(
   "/:id",
   authenticate,
-  authorize("ADMIN"),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(departmentIdParamSchema),
   deleteDepartment,
 );
@@ -64,7 +65,7 @@ router.delete(
 router.patch(
   "/:id/restore",
   authenticate,
-  authorize("ADMIN"),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(departmentIdParamSchema),
   restoreDepartment,
 );

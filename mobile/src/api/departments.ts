@@ -55,3 +55,10 @@ export const getDepartments = async (): Promise<DepartmentsListResponse> => {
     data: response.data.data.map(normalizeDepartment),
   };
 };
+
+export const updateDepartment = async (id: string, payload: Partial<CreateDepartmentPayload>) => {
+  const response = await axiosClient.patch<DepartmentResponse>(`/departments/${id}`, payload);
+  return { ...response.data, data: normalizeDepartment(response.data.data) };
+};
+
+export const deleteDepartment = async (id: string) => (await axiosClient.delete(`/departments/${id}`)).data;

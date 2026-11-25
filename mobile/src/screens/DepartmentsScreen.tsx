@@ -24,7 +24,7 @@ interface DepartmentsScreenProps {
 
 export default function DepartmentsScreen({ onBack }: DepartmentsScreenProps) {
   const { user } = useAuth();
-  const isHOD = user?.role === 'ADMIN';
+  const canManage = user?.role === 'ADMIN' || user?.role === 'TEACHER';
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,11 +175,11 @@ export default function DepartmentsScreen({ onBack }: DepartmentsScreenProps) {
         )}
 
         {/* 2. ADD DEPARTMENT FORM (HOD Only) */}
-        {isHOD ? (
+        {canManage ? (
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>Register New Department</Text>
             <Text style={styles.formSubtitle}>
-              Only HOD accounts can add department entities.
+              Teachers and HOD/Admin accounts can manage departments.
             </Text>
 
             {success ? (

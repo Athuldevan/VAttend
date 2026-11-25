@@ -66,7 +66,7 @@ router.patch(
 router.delete(
   "/:id",
   authenticate,
-  authorize(ROLES.ADMIN),
+  authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(classIdParamSchema),
   deleteClass,
 );

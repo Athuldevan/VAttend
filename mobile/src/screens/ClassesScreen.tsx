@@ -123,7 +123,7 @@ export default function ClassesScreen() {
   const [savingSlot, setSavingSlot] = useState(false);
   const [addSlotError, setAddSlotError] = useState<string | null>(null);
 
-  const isHOD = user?.role === 'ADMIN';
+  const isHOD = user?.role === 'ADMIN' || user?.role === 'TEACHER';
 
   const fetchData = useCallback(async () => {
     setError(null);
@@ -483,17 +483,22 @@ export default function ClassesScreen() {
 
           {/* Year selector */}
           <Text style={styles.fieldLabel}>YEAR</Text>
-          <View style={styles.pillRow}>
+          <Text style={styles.selectorHint}>Choose the current year of this class.</Text>
+          <View style={styles.yearGrid}>
             {[1, 2, 3, 4, 5].map((y) => {
               const selected = formYear === y;
               return (
                 <TouchableOpacity
                   key={y}
-                  style={[styles.pill, selected && styles.pillActive]}
+                  style={[styles.yearOption, selected && styles.pillActive]}
                   onPress={() => setFormYear(y)}
+                  activeOpacity={0.75}
                 >
-                  <Text style={[styles.pillText, selected && styles.pillTextActive]}>
-                    Year {y}
+                  <Text style={[styles.yearNumber, selected && styles.pillTextActive]}>
+                    {y}
+                  </Text>
+                  <Text style={[styles.yearLabel, selected && styles.pillTextActive]}>
+                    {y === 1 ? '1st year' : y === 2 ? '2nd year' : y === 3 ? '3rd year' : `${y}th year`}
                   </Text>
                 </TouchableOpacity>
               );
@@ -502,6 +507,7 @@ export default function ClassesScreen() {
 
           {/* Semester selector */}
           <Text style={styles.fieldLabel}>SEMESTER</Text>
+          <Text style={styles.selectorHint}>Current selection: Semester {formSemester}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -512,8 +518,9 @@ export default function ClassesScreen() {
               return (
                 <TouchableOpacity
                   key={s}
-                  style={[styles.pill, selected && styles.pillActive]}
+                  style={[styles.semesterOption, selected && styles.pillActive]}
                   onPress={() => setFormSemester(s)}
+                  activeOpacity={0.75}
                 >
                   <Text style={[styles.pillText, selected && styles.pillTextActive]}>
                     Sem {s}
@@ -959,11 +966,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: Fonts.bodySemiBold,
   },
-  pillRow: {
+  yearGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.xs,
     marginBottom: Spacing.md,
   },
+  pillRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.md },
   pill: {
     flex: 1,
     borderWidth: 1,
@@ -973,6 +982,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.surface,
   },
+  yearOption: {
+    width: '31%',
+    minHeight: 58,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.base,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+  },
+  semesterOption: { minWidth: 70,
+    borderWidth: 1, borderColor: Colors.line, borderRadius: Radius.base,
+    paddingHorizontal: Spacing.md, paddingVertical: 8, alignItems: 'center', backgroundColor: Colors.surface },
   pillActive: {
     backgroundColor: Colors.brand,
     borderColor: Colors.brand,
@@ -986,6 +1008,9 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     color: Colors.ink,
   },
+  yearNumber: { fontFamily: Fonts.bodySemiBold, fontSize: FontSize.lg, color: Colors.ink, lineHeight: 20 },
+  yearLabel: { fontFamily: Fonts.body, fontSize: FontSize.xs, color: Colors.muted, marginTop: 1 },
+  selectorHint: { fontFamily: Fonts.body, fontSize: FontSize.xs, color: Colors.muted, marginTop: -2, marginBottom: Spacing.sm },
   pillTextActive: {
     color: '#FFFFFF',
     fontFamily: Fonts.bodySemiBold,

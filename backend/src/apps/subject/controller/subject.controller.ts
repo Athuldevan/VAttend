@@ -64,3 +64,24 @@ export const createSubject = async (req: Request, res: Response) => {
     id: subject._id.toString(), name: subject.name, semester: subject.semester,
   });
 };
+
+export const updateSubject = async (req: Request, res: Response) => {
+  const departmentId = req.user?.departmentId;
+  if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
+  const subject = await (Subject as any).findOne({ _id: req.params.id, departmentId });
+  if (!subject) throw new AppError("Subject not found in your department.", HTTP_STATUS.NOT_FOUND);
+  const { name, code, semester } = req.body as { name?: string; code?: string; semester?: number };
+  if (name !== undefined) subject.name = name;
+  if (code !== undefined) subject.code = code;
+  if (semester !== undefined) subject.semester = semester;
+  await subject.save();
+  sendSuccess(res, HTTP_STATUS.OK, "Subject updated successfully", { id: subject._id.toString(), name: subject.name, code: subject.code, semester: subject.semester });
+};
+
+export const deleteSubject = async (req: Request, res: Response) => {
+  const departmentId = req.user?.departmentId;
+  if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
+  const subject = await (Subject as any).findOneAndDelete({ _id: req.params.id, departmentId });
+  if (!subject) throw new AppError("Subject not found in your department.", HTTP_STATUS.NOT_FOUND);
+  sendSuccess(res, HTTP_STATUS.OK, "Subject deleted successfully", null);
+};

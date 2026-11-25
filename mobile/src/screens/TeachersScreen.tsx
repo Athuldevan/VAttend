@@ -23,7 +23,7 @@ interface TeachersScreenProps {
 
 export default function TeachersScreen({ onBack }: TeachersScreenProps) {
   const { user } = useAuth();
-  const isHOD = user?.role === 'ADMIN';
+  const canManage = user?.role === 'ADMIN' || user?.role === 'TEACHER';
 
   const [teachers, setTeachers] = useState<TeacherOption[]>([]);
   const [name, setName] = useState('');
@@ -122,7 +122,7 @@ export default function TeachersScreen({ onBack }: TeachersScreenProps) {
       </View>
 
       {/* Invite Form (HOD only) */}
-      {isHOD ? (
+      {canManage ? (
         <View style={styles.formCard}>
           <Text style={styles.formTitle}>Invite New Faculty</Text>
           <Text style={styles.formSubtitle}>

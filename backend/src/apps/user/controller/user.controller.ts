@@ -120,6 +120,40 @@ export const createTeacher = async (req: Request, res: Response) => {
   );
 };
 
+const teacherResponse = (teacher: any) => ({ id: teacher._id.toString(), name: teacher.name, email: teacher.email, isActive: teacher.isActive });
+const findDepartmentTeacher = async (id: string, departmentId: string) => {
+  const teacher = await User.findOne({ _id: id, departmentId, role: ROLES.TEACHER });
+  if (!teacher) throw new AppError("Faculty member not found in your department.", HTTP_STATUS.NOT_FOUND);
+  return teacher;
+};
+export const getTeacher = async (req: Request, res: Response) => {
+  const departmentId = req.user?.departmentId;
+  if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
+  sendSuccess(res, HTTP_STATUS.OK, "Faculty member fetched successfully", teacherResponse(await findDepartmentTeacher(req.params.id as string, departmentId)));
+};
+export const updateTeacher = async (req: Request, res: Response) => {
+  const departmentId = req.user?.departmentId;
+  if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
+  const teacher = await findDepartmentTeacher(req.params.id as string, departmentId);
+  const { name, email, isActive } = req.body as { name?: string; email?: string; isActive?: boolean };
+  if (email && email !== teacher.email) {
+    if (await User.exists({ email: email.toLowerCase(), _id: { $ne: teacher._id } })) throw new AppError("A user with this email already exists.", HTTP_STATUS.CONFLICT);
+    teacher.email = email.toLowerCase();
+  }
+  if (name !== undefined) teacher.name = name;
+  if (isActive !== undefined) teacher.isActive = isActive;
+  await teacher.save();
+  sendSuccess(res, HTTP_STATUS.OK, "Faculty member updated successfully", teacherResponse(teacher));
+};
+export const deleteTeacher = async (req: Request, res: Response) => {
+  const departmentId = req.user?.departmentId;
+  if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
+  const teacher = await findDepartmentTeacher(req.params.id as string, departmentId);
+  teacher.isActive = false;
+  await teacher.save();
+  sendSuccess(res, HTTP_STATUS.OK, "Faculty member deleted successfully", teacherResponse(teacher));
+};
+
 /** Lists the signed-in faculty member's department students, optionally by class. */
 export const getStudents = async (req: Request, res: Response) => {
   const departmentId = req.user?.departmentId;

@@ -4,6 +4,7 @@ export interface TeacherOption {
   id: string;
   name: string;
   email: string;
+  isActive?: boolean;
 }
 export interface CreatedTeacher extends TeacherOption {
   setupCode?: string;
@@ -40,6 +41,11 @@ export const createTeacher = async (payload: {
   );
   return response.data.data;
 };
+
+export const updateTeacher = async (id: string, payload: Partial<Pick<TeacherOption, 'name' | 'email' | 'isActive'>>) =>
+  (await axiosClient.patch<{ data: TeacherOption }>(`/users/teachers/${id}`, payload)).data.data;
+export const deleteTeacher = async (id: string) =>
+  (await axiosClient.delete<{ data: TeacherOption }>(`/users/teachers/${id}`)).data.data;
 
 export const getStudents = async (classId?: string): Promise<{ data: StudentItem[] }> => {
   const response = await axiosClient.get<{ data: StudentItem[] }>("/users/students", {
