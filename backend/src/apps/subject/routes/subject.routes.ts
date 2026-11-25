@@ -18,7 +18,7 @@ router.post(
   "/",
   authenticate,
   authorize(ROLES.ADMIN, ROLES.TEACHER),
-  validate(z.object({ name: z.string().trim().min(2, "Subject name must be at least 2 characters"), semester: z.coerce.number().int().min(1) })),
+  validate(z.object({ name: z.string().trim().min(2, "Subject name must be at least 2 characters"), semester: z.coerce.number().int().min(1), departmentId: z.string().regex(/^[0-9a-fA-F]{24}$/, "departmentId must be a valid MongoDB ObjectId") })),
   createSubject,
 );
 const subjectIdParams = z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/, "id must be a valid MongoDB ObjectId") });

@@ -54,10 +54,9 @@ export const getClasses = async (
   req: Request,
   res: Response,
 ) => {
-  const departmentId =
-    (req.query.departmentId as
-      | string
-      | undefined) || req.user?.departmentId;
+  // Teacher/Admin management is college-wide. Pass departmentId only when a
+  // caller intentionally wants to filter the class list.
+  const departmentId = req.query.departmentId as string | undefined;
 
   const classes =
     await getClassesService(

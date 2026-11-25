@@ -28,6 +28,21 @@ function buildJwtPayload(user: IUserDocument): AuthUser {
   };
 }
 
+/**
+ * Client-safe user payload returned by register/login.
+ * `departmentId` is required by the apps to scope the data they create.
+ */
+function toAuthUserResponse(user: IUserDocument) {
+  return {
+    id: String(user._id),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    departmentId: user.departmentId.toString(),
+    isActive: user.isActive,
+  };
+}
+
 async function issueTokens(payload: AuthUser): Promise<AuthTokens> {
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
@@ -46,7 +61,7 @@ export async function createUser(input: RegisterInput) {
   newUser.refreshTokenHash = await hashRefreshToken(tokens.refreshToken);
   await newUser.save();
 
-  return { user: newUser, tokens };
+  return { user: toAuthUserResponse(newUser), tokens };
 }
 
 export async function createUserWithDepartment(
@@ -138,13 +153,8 @@ export async function login(input: LoginInput) {
   user.refreshTokenHash = await hashRefreshToken(tokens.refreshToken);
   await user.save();
 
- return {
-    user: {
-      id: user._id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    },
+  return {
+    user: toAuthUserResponse(user),
     tokens,
   };
 }

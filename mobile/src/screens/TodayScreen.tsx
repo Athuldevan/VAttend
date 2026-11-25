@@ -31,6 +31,7 @@ export interface PeriodItem {
   totalStudents?: number;
   classId?: string;
   semester?: number;
+  departmentName?: string;
 }
 
 const DAYS = [
@@ -83,6 +84,11 @@ const getRoom = (slot: TimetableSlot): string => {
       ? slot.department?.code || slot.department?.name
       : '';
   return dept ? `${dept} Dept` : `Room ${100 + slot.period}`;
+};
+
+const getDepartmentName = (department: TimetableSlot['department']): string => {
+  if (!department || typeof department === 'string') return 'Department';
+  return department.code || department.name || 'Department';
 };
 
 function getGreeting(): string {
@@ -196,6 +202,7 @@ export default function TodayScreen({ onSelectPeriod }: TodayScreenProps) {
         totalStudents: att.totalStudents,
         classId,
         semester: slot.semester,
+        departmentName: getDepartmentName(slot.department),
       };
     });
 
@@ -338,7 +345,7 @@ export default function TodayScreen({ onSelectPeriod }: TodayScreenProps) {
                       {period.subjectName}
                     </Text>
                     <Text style={styles.classRoomText} numberOfLines={1}>
-                      {period.className} · {period.room}
+                      {period.departmentName} · {period.className}
                     </Text>
                     {isDone ? (
                       <Text style={styles.countsText}>

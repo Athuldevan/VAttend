@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import TimeTable from "../model/timeTableSchema.js";
 import Subject from "../../subject/model/subject.model.js";
 import User from "../../user/user.model.js";
+import { Class } from "../../class/model/class.model.js";
 import { ROLES } from "../../../shared/constants/roles.js";
 import { checkTimetableClash } from "../helper/checkTimeTableClash.js";
 import type { CreateTimetableInput, UpdateTimetableInput } from "../types/timeTable.Types.js";
@@ -11,7 +12,7 @@ export const createTimetable = async (data: CreateTimetableInput) => {
     throw new Error("Department is required.");
   }
 
-  await validateTimetableReferences(data.teacher, data.subject, data.department);
+  await validateTimetableReferences(data.class, data.teacher, data.subject, data.department);
 
   await checkTimetableClash(
     data.class,
@@ -38,12 +39,10 @@ export const createTimetable = async (data: CreateTimetableInput) => {
 
 export const updateTimetable = async (
   timetableId: string,
-  departmentId: string,
   data: UpdateTimetableInput,
 ) => {
   const timetable = await TimeTable.findOne({
     _id: new Types.ObjectId(timetableId),
-    department: new Types.ObjectId(departmentId),
     isDeleted: false,
   });
 
@@ -61,9 +60,10 @@ export const updateTimetable = async (
 
   if (data.teacher !== undefined || data.subject !== undefined) {
     await validateTimetableReferences(
+      classId,
       teacherId,
       data.subject ?? timetable.subject.toString(),
-      departmentId,
+      timetable.department.toString(),
     );
   }
 
@@ -107,14 +107,15 @@ export const updateTimetable = async (
 };
 
 const validateTimetableReferences = async (
+  classId: string,
   teacherId: string,
   subjectId: string,
   departmentId: string,
 ) => {
-  const [teacher, subject] = await Promise.all([
+  const [classRecord, teacher, subject] = await Promise.all([
+    Class.exists({ _id: new Types.ObjectId(classId), departmentId: new Types.ObjectId(departmentId) }),
     User.exists({
       _id: new Types.ObjectId(teacherId),
-      departmentId: new Types.ObjectId(departmentId),
       role: ROLES.TEACHER,
       isActive: true,
     }),
@@ -124,7 +125,8 @@ const validateTimetableReferences = async (
     }),
   ]);
 
-  if (!teacher) throw new Error("Selected teacher is not available in this department.");
+  if (!classRecord) throw new Error("Selected class does not belong to this department.");
+  if (!teacher) throw new Error("Selected teacher is inactive or does not exist.");
   if (!subject) throw new Error("Selected subject is not available in this department.");
 };
 
@@ -132,11 +134,9 @@ const validateTimetableReferences = async (
 
 export const deleteTimetable = async (
   timetableId: string,
-  departmentId: string,
 ) => {
   const timetable = await TimeTable.findOne({
     _id: new Types.ObjectId(timetableId),
-    department: new Types.ObjectId(departmentId),
     isDeleted: false,
   });
 
@@ -161,7 +161,6 @@ export const getClassTimetable = async (
 ) => {
   const query: Record<string, any> = {
     class: new Types.ObjectId(classId),
-    department: new Types.ObjectId(departmentId),
   };
 
   // If semester is NOT provided,

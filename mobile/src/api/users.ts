@@ -5,6 +5,7 @@ export interface TeacherOption {
   name: string;
   email: string;
   isActive?: boolean;
+  primaryDepartment?: { id: string; name: string; code: string };
 }
 export interface CreatedTeacher extends TeacherOption {
   setupCode?: string;
@@ -56,7 +57,6 @@ export const getStudents = async (classId?: string): Promise<{ data: StudentItem
 
 export const createStudent = async (payload: {
   name: string;
-  email: string;
   rollNumber: number;
   classId: string;
 }): Promise<StudentItem> => {

@@ -10,12 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Fonts, Radius, Spacing } from '../constants/theme';
-import { createTeacher, getTeachers, type TeacherOption } from '../api/users';
+import { createTeacher, deleteTeacher, getTeachers, updateTeacher, type TeacherOption } from '../api/users';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Tag from '../components/Tag';
 import SkeletonList from '../components/Skeleton';
+import Sheet from '../components/Sheet';
 
 interface TeachersScreenProps {
   onBack?: () => void;
@@ -31,6 +32,8 @@ export default function TeachersScreen({ onBack }: TeachersScreenProps) {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [inviteSheetVisible, setInviteSheetVisible] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<TeacherOption | null>(null);
 
   const load = useCallback(() => {
     getTeachers()
@@ -59,14 +62,19 @@ export default function TeachersScreen({ onBack }: TeachersScreenProps) {
 
     setSubmitting(true);
     try {
-      const teacher = await createTeacher({ name: name.trim(), email: email.trim() });
+      const teacher = editingTeacher
+        ? await updateTeacher(editingTeacher.id, { name: name.trim(), email: email.trim() })
+        : await createTeacher({ name: name.trim(), email: email.trim() });
       setName('');
       setEmail('');
-      const statusText = teacher.emailSent
+      setInviteSheetVisible(false);
+      setEditingTeacher(null);
+      const createdTeacher = teacher as any;
+      const statusText = createdTeacher.emailSent
         ? `An invitation email was sent to ${teacher.email} with their 6-digit setup code.`
-        : `Faculty account created. Setup code: ${teacher.setupCode}`;
+        : `Faculty account created. Setup code: ${createdTeacher.setupCode}`;
 
-      Alert.alert('Faculty Invited Successfully', `${statusText}\n\nSetup Code: ${teacher.setupCode}`);
+      Alert.alert(editingTeacher ? 'Faculty updated' : 'Faculty invited successfully', editingTeacher ? 'Faculty details have been updated.' : `${statusText}\n\nSetup Code: ${createdTeacher.setupCode}`);
       load();
     } catch (e: any) {
       Alert.alert(
@@ -79,6 +87,13 @@ export default function TeachersScreen({ onBack }: TeachersScreenProps) {
       setSubmitting(false);
     }
   };
+
+  const openAdd = () => { setEditingTeacher(null); setName(''); setEmail(''); setInviteSheetVisible(true); };
+  const openEdit = (teacher: TeacherOption) => { setEditingTeacher(teacher); setName(teacher.name); setEmail(teacher.email); setInviteSheetVisible(true); };
+  const removeTeacher = (teacher: TeacherOption) => Alert.alert('Remove faculty?', `${teacher.name} will be deactivated and can no longer be assigned to periods.`, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Remove', style: 'destructive', onPress: async () => { try { await deleteTeacher(teacher.id); load(); } catch (e: any) { Alert.alert('Could not remove faculty', e?.response?.data?.message || 'Please try again.'); } } },
+  ]);
 
   const getInitials = (fullName: string) => {
     const parts = fullName.trim().split(/\s+/);
@@ -114,16 +129,13 @@ export default function TeachersScreen({ onBack }: TeachersScreenProps) {
       ) : null}
 
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Faculty</Text>
-        <Text style={styles.subtitle}>
-          Teachers directory and automated invitation portal
-        </Text>
+      <View style={styles.headerRow}>
+        <View style={styles.headerText}><Text style={styles.title}>Faculty</Text><Text style={styles.subtitle}>Teachers directory and invitation portal</Text></View>
+        {canManage ? <Button title="Add faculty" size="sm" fullWidth={false} icon={<Ionicons name="add" size={18} color="#fff" />} onPress={openAdd} /> : null}
       </View>
 
-      {/* Invite Form (HOD only) */}
-      {canManage ? (
-        <View style={styles.formCard}>
+      <Sheet visible={inviteSheetVisible} onClose={() => { setInviteSheetVisible(false); setEditingTeacher(null); }} title={editingTeacher ? "Edit Faculty" : "Add Faculty"} subtitle={editingTeacher ? "Update faculty details." : "Send an account activation invitation."}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheetBody}>
           <Text style={styles.formTitle}>Invite New Faculty</Text>
           <Text style={styles.formSubtitle}>
             Send an activation email with a 6-digit setup code for self-onboarding.
@@ -146,14 +158,14 @@ export default function TeachersScreen({ onBack }: TeachersScreenProps) {
           />
 
           <Button
-            title="Send Invitation"
+            title={editingTeacher ? "Save Changes" : "Send Invitation"}
             onPress={handleInvite}
             loading={submitting}
             disabled={!name.trim() || !email.trim()}
             disabledReason={!name.trim() || !email.trim() ? 'Enter name and email' : undefined}
           />
-        </View>
-      ) : null}
+        </ScrollView>
+      </Sheet>
 
       {/* Active Faculty List */}
       <View style={styles.sectionHeaderRow}>
@@ -191,7 +203,7 @@ export default function TeachersScreen({ onBack }: TeachersScreenProps) {
                     <Text style={styles.teacherEmail}>{teacher.email}</Text>
                   </View>
 
-                  <Tag label="Active" variant="present" />
+                  <View style={styles.rowActions}><Tag label="Active" variant="present" /><TouchableOpacity onPress={() => openEdit(teacher)}><Ionicons name="create-outline" size={19} color={Colors.brand} /></TouchableOpacity><TouchableOpacity onPress={() => removeTeacher(teacher)}><Ionicons name="trash-outline" size={19} color={Colors.absent} /></TouchableOpacity></View>
                 </View>
                 {!isLast ? <View style={styles.divider} /> : null}
               </View>
@@ -226,9 +238,8 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.brand,
   },
-  header: {
-    marginBottom: Spacing.lg,
-  },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.lg },
+  headerText: { flex: 1 },
   title: {
     fontFamily: Fonts.heading,
     fontSize: FontSize['3xl'],
@@ -248,6 +259,7 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     marginBottom: Spacing.xl,
   },
+  sheetBody: { paddingBottom: Spacing['2xl'] },
   formTitle: {
     fontFamily: Fonts.heading,
     fontSize: FontSize.xl,
@@ -317,6 +329,7 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     marginTop: 2,
   },
+  rowActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   divider: {
     height: 1,
     backgroundColor: Colors.line,

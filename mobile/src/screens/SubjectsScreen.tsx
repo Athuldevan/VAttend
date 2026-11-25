@@ -6,16 +6,17 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
-import { getSubjects, createSubject, type SubjectOption } from '../api/subjects';
+import { getSubjects, createSubject, updateSubject, deleteSubject, type SubjectOption } from '../api/subjects';
+import { Alert } from 'react-native';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Tag from '../components/Tag';
 import SkeletonList from '../components/Skeleton';
+import Sheet from '../components/Sheet';
+import { getDepartments, type Department } from '../api/departments';
 
 interface SubjectsScreenProps {
   onBack?: () => void;
@@ -35,6 +36,18 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [addSheetVisible, setAddSheetVisible] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<SubjectOption | null>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
+
+  useEffect(() => {
+    getDepartments().then((res) => {
+      const items = res.data || [];
+      setDepartments(items);
+      if (!selectedDepartmentId && items[0]?.id) setSelectedDepartmentId(items[0].id);
+    }).catch(() => setDepartments([]));
+  }, [selectedDepartmentId]);
 
   const fetchSubjects = useCallback(async () => {
     try {
@@ -68,13 +81,16 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
     setSuccess(null);
 
     try {
-      await createSubject({
-        name: newName.trim(),
-        semester: newSemester,
-      });
+      if (editingSubject) await updateSubject(editingSubject.id, { name: newName.trim(), semester: newSemester });
+      else {
+        if (!selectedDepartmentId) { setError('Choose a department first.'); setSubmitting(false); return; }
+        await createSubject({ name: newName.trim(), semester: newSemester, departmentId: selectedDepartmentId });
+      }
       setSuccess(`Subject "${newName.trim()}" added to Semester ${newSemester}.`);
       setNewName('');
       fetchSubjects();
+      setAddSheetVisible(false);
+      setEditingSubject(null);
     } catch (err: any) {
       setError(
         err?.response?.data?.message || 'Failed to add subject. Please try again.'
@@ -84,11 +100,15 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
     }
   };
 
+  const openAdd = () => { setEditingSubject(null); setNewName(''); setNewSemester(selectedSemester || 1); setError(null); setSuccess(null); setAddSheetVisible(true); };
+  const openEdit = (subject: SubjectOption) => { setEditingSubject(subject); setNewName(subject.name); setNewSemester(subject.semester || 1); setError(null); setSuccess(null); setAddSheetVisible(true); };
+  const removeSubject = (subject: SubjectOption) => Alert.alert('Delete subject?', `${subject.name} will be removed from the curriculum.`, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: async () => { try { await deleteSubject(subject.id); fetchSubjects(); } catch (err: any) { Alert.alert('Could not delete subject', err?.response?.data?.message || 'Please try again.'); } } },
+  ]);
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -114,11 +134,12 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
         ) : null}
 
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Subjects</Text>
-          <Text style={styles.subtitle}>
-            Course curriculum by semester ({subjects.length} courses)
-          </Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Subjects</Text>
+            <Text style={styles.subtitle}>Course curriculum by semester ({subjects.length} courses)</Text>
+          </View>
+          <Button title="Add subject" size="sm" fullWidth={false} icon={<Ionicons name="add" size={18} color="#FFFFFF" />} onPress={openAdd} />
         </View>
 
         {/* S1 - S8 Filter Chips */}
@@ -201,10 +222,7 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
                         {subj.semester ? `Semester ${subj.semester}` : 'General'}
                       </Text>
                     </View>
-                    <Tag
-                      label={subj.semester ? `S${subj.semester}` : 'Core'}
-                      variant="brand"
-                    />
+                    <View style={styles.rowActions}><Tag label={subj.semester ? `S${subj.semester}` : 'Core'} variant="brand" /><TouchableOpacity onPress={() => openEdit(subj)}><Ionicons name="create-outline" size={19} color={Colors.brand} /></TouchableOpacity><TouchableOpacity onPress={() => removeSubject(subj)}><Ionicons name="trash-outline" size={19} color={Colors.absent} /></TouchableOpacity></View>
                   </View>
                   {!isLast ? <View style={styles.divider} /> : null}
                 </View>
@@ -213,12 +231,9 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
           </View>
         )}
 
-        {/* Add Subject Form */}
-        <View style={styles.formCard}>
-            <Text style={styles.formTitle}>Add New Subject</Text>
-            <Text style={styles.formSubtitle}>
-              Create a new course catalog item for the curriculum.
-            </Text>
+      </ScrollView>
+      <Sheet visible={addSheetVisible} onClose={() => { setAddSheetVisible(false); setEditingSubject(null); }} title={editingSubject ? "Edit Subject" : "Add Subject"} subtitle="Add this course to a specific semester.">
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetBody}>
 
             {success ? (
               <View style={styles.successBox}>
@@ -234,7 +249,8 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
               </View>
             ) : null}
 
-            <Input
+          {!editingSubject ? <><Text style={styles.fieldLabel}>DEPARTMENT</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.formPillScroll}>{departments.map((department) => { const selected = selectedDepartmentId === department.id; return <TouchableOpacity key={department.id} style={[styles.filterChip, selected && styles.filterChipActive]} onPress={() => setSelectedDepartmentId(department.id)}><Text style={[styles.filterChipText, selected && styles.filterChipTextActive]}>{department.code}</Text></TouchableOpacity>; })}</ScrollView><Text style={styles.selectionHint}>{departments.find((department) => department.id === selectedDepartmentId)?.name || 'Choose the department for this subject.'}</Text></> : null}
+          <Input
               label="Subject name"
               value={newName}
               onChangeText={(t) => {
@@ -246,11 +262,8 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
             />
 
             <Text style={styles.fieldLabel}>SEMESTER (S1 – S8)</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.formPillScroll}
-            >
+            <Text style={styles.selectionHint}>Selected: Semester {newSemester}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.formPillScroll}>
               {SEMESTERS.map((s) => {
                 const isSelected = newSemester === s;
                 return (
@@ -268,7 +281,7 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
                         isSelected && styles.filterChipTextActive,
                       ]}
                     >
-                      Semester {s}
+                      S{s}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -277,18 +290,16 @@ export default function SubjectsScreen({ onBack }: SubjectsScreenProps) {
 
             <View style={{ marginTop: Spacing.md }}>
               <Button
-                title="Add Subject"
+                title={editingSubject ? "Save Changes" : "Add Subject"}
                 onPress={handleCreateSubject}
                 loading={submitting}
                 disabled={!newName.trim()}
                 disabledReason={!newName.trim() ? 'Enter subject name' : undefined}
               />
             </View>
-        </View>
-
-        <View style={{ height: Spacing['2xl'] }} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </Sheet>
+    </View>
   );
 }
 
@@ -316,6 +327,8 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: Spacing.lg,
   },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.lg },
+  headerText: { flex: 1 },
   title: {
     fontFamily: Fonts.heading,
     fontSize: FontSize['3xl'],
@@ -380,6 +393,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     minHeight: 56,
   },
+  rowActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   subjectInfo: {
     flex: 1,
     marginRight: Spacing.md,
@@ -452,6 +466,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: Spacing.sm,
   },
+  sheetBody: { paddingBottom: Spacing['2xl'] },
+  selectionHint: { fontFamily: Fonts.body, fontSize: FontSize.xs, color: Colors.muted, marginTop: -Spacing.xs, marginBottom: Spacing.sm },
   successBox: {
     flexDirection: 'row',
     alignItems: 'center',

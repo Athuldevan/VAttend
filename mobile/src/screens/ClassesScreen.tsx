@@ -25,6 +25,7 @@ import {
   getClassTimetable,
   createTimetable,
   deleteTimetable,
+  updateTimetable,
   type TimetableSlot,
 } from '../api/timetable';
 import { getTeachers, type TeacherOption } from '../api/users';
@@ -32,6 +33,7 @@ import { getSubjects, type SubjectOption } from '../api/subjects';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import TimeField from '../components/TimeField';
 import Sheet from '../components/Sheet';
 import Tag from '../components/Tag';
 import SkeletonList from '../components/Skeleton';
@@ -111,6 +113,7 @@ export default function ClassesScreen() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [slots, setSlots] = useState<TimetableSlot[]>([]);
   const [timetableLoading, setTimetableLoading] = useState(false);
+  const [timetableError, setTimetableError] = useState<string | null>(null);
 
   // Add period form states
   const [addPeriod, setAddPeriod] = useState(1);
@@ -122,6 +125,7 @@ export default function ClassesScreen() {
   const [availableSubjects, setAvailableSubjects] = useState<SubjectOption[]>([]);
   const [savingSlot, setSavingSlot] = useState(false);
   const [addSlotError, setAddSlotError] = useState<string | null>(null);
+  const [editingSlot, setEditingSlot] = useState<TimetableSlot | null>(null);
 
   const isHOD = user?.role === 'ADMIN' || user?.role === 'TEACHER';
 
@@ -160,7 +164,6 @@ export default function ClassesScreen() {
   const handleOpenNewClass = () => {
     setEditingClass(null);
     setFormDepartmentId(user?.departmentId || (departments[0]?.id ?? ''));
-    setFormProgramId(programs[0]?.id ?? '');
     setFormYear(1);
     setFormSemester(1);
     setFormAcademicYear(currentAcademicYear());
@@ -171,7 +174,6 @@ export default function ClassesScreen() {
   const handleOpenEditClass = (cls: ClassItem) => {
     setEditingClass(cls);
     setFormDepartmentId(cls.departmentId || user?.departmentId || '');
-    setFormProgramId(cls.programId || '');
     setFormYear(cls.year);
     setFormSemester(cls.currentSemester);
     setFormAcademicYear(cls.academicYear);
@@ -196,7 +198,6 @@ export default function ClassesScreen() {
         year: formYear,
         academicYear: formAcademicYear.trim(),
         currentSemester: formSemester,
-        ...(formProgramId ? { programId: formProgramId } : {}),
       };
 
       if (editingClass) {
@@ -242,11 +243,17 @@ export default function ClassesScreen() {
   // Timetable
   const loadTimetableForClass = useCallback(async (cls: ClassItem) => {
     setTimetableLoading(true);
+    setTimetableError(null);
     try {
       const res = await getClassTimetable(cls.id, cls.currentSemester);
       setSlots(res.data || []);
-    } catch {
+    } catch (err: any) {
+      // Never fall through silently: an empty list here would show free periods
+      // that are actually taken, and saving them fails on the server.
       setSlots([]);
+      setTimetableError(
+        err?.response?.data?.message || 'Could not load this timetable. Pull to retry.',
+      );
     } finally {
       setTimetableLoading(false);
     }
@@ -269,6 +276,7 @@ export default function ClassesScreen() {
   };
 
   const handleOpenAddPeriod = () => {
+    setEditingSlot(null);
     const firstAvailablePeriod = [1, 2, 3, 4, 5, 6, 7, 8].find(
       (period) => !daySlots.some((slot) => slot.period === period),
     );
@@ -283,6 +291,17 @@ export default function ClassesScreen() {
     setAddPeriodSheetVisible(true);
   };
 
+  const handleOpenEditPeriod = (slot: TimetableSlot) => {
+    setEditingSlot(slot);
+    setAddPeriod(slot.period);
+    setAddStartTime(slot.startTime);
+    setAddEndTime(slot.endTime);
+    setAddSubject(typeof slot.subject === 'object' ? (slot.subject.id || slot.subject._id || '') : slot.subject);
+    setAddTeacher(typeof slot.teacher === 'object' ? (slot.teacher.id || slot.teacher._id || '') : slot.teacher);
+    setAddSlotError(null);
+    setAddPeriodSheetVisible(true);
+  };
+
   const handleSavePeriod = async () => {
     if (!selectedClassForTimetable) return;
     if (!addSubject) {
@@ -293,22 +312,35 @@ export default function ClassesScreen() {
       setAddSlotError('Please choose a teacher.');
       return;
     }
+    const startMinutes = timeToMinutes(addStartTime);
+    const endMinutes = timeToMinutes(addEndTime);
+    if (startMinutes === null || endMinutes === null) {
+      setAddSlotError('Please set a valid start and end time.');
+      return;
+    }
+    if (endMinutes <= startMinutes) {
+      setAddSlotError('End time must be after the start time.');
+      return;
+    }
 
     setSavingSlot(true);
     setAddSlotError(null);
     try {
-      await createTimetable({
+      const payload = {
         class: selectedClassForTimetable.id,
         semester: selectedClassForTimetable.currentSemester,
         dayOfWeek: selectedDay,
         period: addPeriod,
-        startTime: addStartTime.trim(),
-        endTime: addEndTime.trim(),
+        startTime: minutesToTime(startMinutes),
+        endTime: minutesToTime(endMinutes),
         subject: addSubject,
         teacher: addTeacher,
         department: selectedClassForTimetable.departmentId,
-      });
+      };
+      if (editingSlot) await updateTimetable(editingSlot.id, payload);
+      else await createTimetable(payload);
       setAddPeriodSheetVisible(false);
+      setEditingSlot(null);
       loadTimetableForClass(selectedClassForTimetable);
     } catch (err: any) {
       setAddSlotError(
@@ -342,7 +374,14 @@ export default function ClassesScreen() {
   const daySlots = slots
     .filter((s) => s.dayOfWeek === selectedDay)
     .sort((a, b) => a.period - b.period);
-  const occupiedPeriods = new Set(daySlots.map((slot) => slot.period));
+  const occupiedPeriods = new Set(daySlots.filter((slot) => slot.id !== editingSlot?.id).map((slot) => slot.period));
+
+  const addStartMinutes = timeToMinutes(addStartTime);
+  const addEndMinutes = timeToMinutes(addEndTime);
+  const periodDurationLabel =
+    addStartMinutes !== null && addEndMinutes !== null && addEndMinutes > addStartMinutes
+      ? `${addEndMinutes - addStartMinutes} min`
+      : null;
 
   return (
     <ScrollView
@@ -458,28 +497,19 @@ export default function ClassesScreen() {
             </View>
           ) : null}
 
-          {/* Program selection */}
-          <Text style={styles.fieldLabel}>PROGRAM</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipScroll}
-          >
-            {programs.map((p) => {
-              const selected = formProgramId === p.id;
-              return (
-                <TouchableOpacity
-                  key={p.id}
-                  style={[styles.chip, selected && styles.chipActive]}
-                  onPress={() => setFormProgramId(p.id)}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>
-                    {p.name}
-                  </Text>
-                </TouchableOpacity>
-              );
+          <Text style={styles.fieldLabel}>DEPARTMENT</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+            {departments.map((department) => {
+              const selected = formDepartmentId === department.id;
+              return <TouchableOpacity key={department.id} style={[styles.chip, selected && styles.chipActive]} onPress={() => setFormDepartmentId(department.id)}><Text style={[styles.chipText, selected && styles.chipTextActive]}>{department.code || department.name}</Text></TouchableOpacity>;
             })}
           </ScrollView>
+          {user?.departmentId && formDepartmentId && formDepartmentId !== user.departmentId ? (
+            <Text style={styles.selectorHint}>
+              This class will belong to another department, so it will not appear in your
+              classes list.
+            </Text>
+          ) : null}
 
           {/* Year selector */}
           <Text style={styles.fieldLabel}>YEAR</Text>
@@ -594,18 +624,44 @@ export default function ClassesScreen() {
               {DAYS_OF_WEEK.find((d) => d.day === selectedDay)?.full}
             </Text>
             <TouchableOpacity
-              style={styles.addPeriodOutlineBtn}
+              style={[styles.addPeriodOutlineBtn, Boolean(timetableError) && styles.pillUnavailable]}
               onPress={handleOpenAddPeriod}
               activeOpacity={0.7}
+              disabled={timetableLoading || Boolean(timetableError)}
             >
-              <Ionicons name="add" size={16} color={Colors.brand} />
-              <Text style={styles.addPeriodOutlineText}>Add period</Text>
+              <Ionicons
+                name="add"
+                size={16}
+                color={timetableError ? Colors.muted : Colors.brand}
+              />
+              <Text
+                style={[
+                  styles.addPeriodOutlineText,
+                  Boolean(timetableError) && styles.pillTextUnavailable,
+                ]}
+              >
+                Add period
+              </Text>
             </TouchableOpacity>
           </View>
 
           {/* Slots list */}
           {timetableLoading ? (
             <ActivityIndicator size="small" color={Colors.brand} style={{ margin: 20 }} />
+          ) : timetableError ? (
+            <View style={styles.sheetErrorBox}>
+              <Ionicons name="alert-circle" size={16} color={Colors.absent} />
+              <Text style={styles.sheetErrorText}>{timetableError}</Text>
+              <TouchableOpacity
+                onPress={() =>
+                  selectedClassForTimetable &&
+                  loadTimetableForClass(selectedClassForTimetable)
+                }
+                activeOpacity={0.7}
+              >
+                <Text style={styles.addPeriodOutlineText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
           ) : daySlots.length === 0 ? (
             <View style={styles.emptyDayBox}>
               <Text style={styles.emptyDayText}>
@@ -640,11 +696,18 @@ export default function ClassesScreen() {
                           <Text style={styles.slotTeacher}>{teacherName}</Text>
                         </View>
                         <TouchableOpacity
+                          onPress={() => handleOpenEditPeriod(slot)}
+                          style={styles.editSlotBtn}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={styles.editSlotText}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
                           onPress={() => handleDeleteSlot(slot)}
                           style={styles.removeSlotBtn}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <Text style={styles.removeSlotText}>Remove</Text>
+                          <Text style={styles.removeSlotText}>Delete</Text>
                         </TouchableOpacity>
                       </View>
                       {!isLastSlot ? <View style={styles.divider} /> : null}
@@ -660,8 +723,8 @@ export default function ClassesScreen() {
       {/* ─── 3. Add Period Sheet ─── */}
       <Sheet
         visible={addPeriodSheetVisible}
-        onClose={() => setAddPeriodSheetVisible(false)}
-        title="Add Period"
+        onClose={() => { setAddPeriodSheetVisible(false); setEditingSlot(null); }}
+        title={editingSlot ? "Edit Period" : "Add Period"}
         subtitle={`Schedule on ${DAYS_OF_WEEK.find((d) => d.day === selectedDay)?.full}`}
       >
         <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
@@ -709,26 +772,32 @@ export default function ClassesScreen() {
           </View>
 
           {/* Times */}
-          <View style={styles.timeInputsRow}>
-            <View style={{ flex: 1 }}>
-              <Input
-                label="Start time"
-                value={addStartTime}
-                onChangeText={setAddStartTime}
-                placeholder="09:00"
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Input
-                label="End time"
-                value={addEndTime}
-                onChangeText={setAddEndTime}
-                placeholder="10:00"
-              />
-            </View>
-          </View>
+          <TimeField
+            label="Start time"
+            value={addStartTime}
+            onChange={(next) => {
+              setAddStartTime(next);
+              // Keep the end time after the start time, preserving the chosen duration.
+              const startMinutes = timeToMinutes(addStartTime);
+              const endMinutes = timeToMinutes(addEndTime);
+              const nextStart = timeToMinutes(next);
+              if (nextStart === null) return;
+              const duration =
+                startMinutes !== null && endMinutes !== null && endMinutes > startMinutes
+                  ? endMinutes - startMinutes
+                  : 60;
+              setAddEndTime(minutesToTime(nextStart + duration));
+            }}
+          />
+          <TimeField
+            label="End time"
+            value={addEndTime}
+            onChange={setAddEndTime}
+          />
           <Text style={styles.timeHint}>
-            Times are suggested from the preceding period and can be edited.
+            {periodDurationLabel
+              ? `Suggested from the preceding period · ${periodDurationLabel}`
+              : 'End time must be after the start time.'}
           </Text>
 
           {/* Subject selection */}
@@ -770,7 +839,7 @@ export default function ClassesScreen() {
                   onPress={() => setAddTeacher(t.id)}
                 >
                   <Text style={[styles.chipText, selected && styles.chipTextActive]}>
-                    {t.name}
+                    {t.name}{t.primaryDepartment?.code ? ` · ${t.primaryDepartment.code}` : ''}
                   </Text>
                 </TouchableOpacity>
               );
@@ -779,7 +848,7 @@ export default function ClassesScreen() {
 
           <View style={styles.sheetActionRow}>
             <Button
-              title="Save Period"
+              title={editingSlot ? "Save Changes" : "Save Period"}
               onPress={handleSavePeriod}
               loading={savingSlot}
             />
@@ -1159,6 +1228,15 @@ const styles = StyleSheet.create({
   removeSlotBtn: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
+  },
+  editSlotBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  editSlotText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.brand,
   },
   removeSlotText: {
     fontFamily: Fonts.bodySemiBold,

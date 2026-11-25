@@ -39,7 +39,6 @@ router.post(
   authorize(ROLES.ADMIN, ROLES.TEACHER),
   validate(z.object({
     name: z.string().trim().min(2),
-    email: z.string().trim().email().toLowerCase(),
     rollNumber: z.coerce.number().int().positive(),
     classId: z.string().regex(/^[0-9a-fA-F]{24}$/, "classId must be a valid MongoDB ObjectId"),
   })),

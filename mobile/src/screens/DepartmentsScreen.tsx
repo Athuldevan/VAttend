@@ -11,12 +11,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Fonts } from '../constants/theme';
-import { createDepartment, getDepartments, type Department } from '../api/departments';
+import { createDepartment, deleteDepartment, getDepartments, updateDepartment, type Department } from '../api/departments';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Tag from '../components/Tag';
 import SkeletonList from '../components/Skeleton';
+import { Alert } from 'react-native';
+import Sheet from '../components/Sheet';
 
 interface DepartmentsScreenProps {
   onBack?: () => void;
@@ -37,6 +39,8 @@ export default function DepartmentsScreen({ onBack }: DepartmentsScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; code?: string }>({});
+  const [addSheetVisible, setAddSheetVisible] = useState(false);
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
 
   const loadDepartments = useCallback(async () => {
     try {
@@ -75,15 +79,16 @@ export default function DepartmentsScreen({ onBack }: DepartmentsScreenProps) {
 
     setSubmitting(true);
     try {
-      const response = await createDepartment({
-        name: name.trim(),
-        code: code.trim().toUpperCase(),
-      });
-      setSuccess(`Department "${response.data.name}" registered successfully.`);
+      const response = editingDepartment
+        ? await updateDepartment(editingDepartment.id, { name: name.trim(), code: code.trim().toUpperCase() })
+        : await createDepartment({ name: name.trim(), code: code.trim().toUpperCase() });
+      setSuccess(`Department "${response.data.name}" saved successfully.`);
       setName('');
       setCode('');
       setFieldErrors({});
       loadDepartments();
+      setAddSheetVisible(false);
+      setEditingDepartment(null);
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 409) setError('A department with this code already exists.');
@@ -93,6 +98,13 @@ export default function DepartmentsScreen({ onBack }: DepartmentsScreenProps) {
       setSubmitting(false);
     }
   };
+
+  const openAdd = () => { setEditingDepartment(null); setName(''); setCode(''); setError(null); setFieldErrors({}); setAddSheetVisible(true); };
+  const openEdit = (department: Department) => { setEditingDepartment(department); setName(department.name); setCode(department.code); setError(null); setFieldErrors({}); setAddSheetVisible(true); };
+  const removeDepartment = (department: Department) => Alert.alert('Delete department?', `${department.name} will be hidden from active management.`, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: async () => { try { await deleteDepartment(department.id); loadDepartments(); } catch (err: any) { Alert.alert('Could not delete department', err?.response?.data?.message || 'Please try again.'); } } },
+  ]);
 
   return (
     <KeyboardAvoidingView
@@ -124,11 +136,9 @@ export default function DepartmentsScreen({ onBack }: DepartmentsScreenProps) {
         ) : null}
 
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Departments</Text>
-          <Text style={styles.subtitle}>
-            Academic department directory ({departments.length} registered)
-          </Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}><Text style={styles.title}>Departments</Text><Text style={styles.subtitle}>Academic department directory ({departments.length} registered)</Text></View>
+          {canManage ? <Button title="Add department" size="sm" fullWidth={false} icon={<Ionicons name="add" size={18} color="#fff" />} onPress={openAdd} /> : null}
         </View>
 
         {/* 1. LIST OF EXISTING DEPARTMENTS WITH CODE TAGS */}
@@ -165,7 +175,7 @@ export default function DepartmentsScreen({ onBack }: DepartmentsScreenProps) {
                           : 'No HOD assigned'}
                       </Text>
                     </View>
-                    <Tag label={dept.code} variant="neutral" />
+                    <View style={styles.rowActions}><Tag label={dept.code} variant="neutral" /><TouchableOpacity onPress={() => openEdit(dept)}><Ionicons name="create-outline" size={19} color={Colors.brand} /></TouchableOpacity><TouchableOpacity onPress={() => removeDepartment(dept)}><Ionicons name="trash-outline" size={19} color={Colors.absent} /></TouchableOpacity></View>
                   </View>
                   {!isLast ? <View style={styles.divider} /> : null}
                 </View>
@@ -174,9 +184,8 @@ export default function DepartmentsScreen({ onBack }: DepartmentsScreenProps) {
           </View>
         )}
 
-        {/* 2. ADD DEPARTMENT FORM (HOD Only) */}
-        {canManage ? (
-          <View style={styles.formCard}>
+        <Sheet visible={addSheetVisible} onClose={() => { setAddSheetVisible(false); setEditingDepartment(null); }} title={editingDepartment ? "Edit Department" : "Add Department"} subtitle="Create or update an academic department.">
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheetBody}>
             <Text style={styles.formTitle}>Register New Department</Text>
             <Text style={styles.formSubtitle}>
               Teachers and HOD/Admin accounts can manage departments.
@@ -222,7 +231,7 @@ export default function DepartmentsScreen({ onBack }: DepartmentsScreenProps) {
             />
 
             <Button
-              title="Add Department"
+              title={editingDepartment ? "Save Changes" : "Add Department"}
               onPress={handleSubmit}
               loading={submitting}
               disabled={!name.trim() || !code.trim()}
@@ -230,8 +239,8 @@ export default function DepartmentsScreen({ onBack }: DepartmentsScreenProps) {
                 !name.trim() || !code.trim() ? 'Enter name and code' : undefined
               }
             />
-          </View>
-        ) : null}
+          </ScrollView>
+        </Sheet>
 
         <View style={{ height: Spacing['2xl'] }} />
       </ScrollView>
@@ -260,9 +269,8 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.brand,
   },
-  header: {
-    marginBottom: Spacing.xl,
-  },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.xl },
+  headerText: { flex: 1 },
   title: {
     fontFamily: Fonts.heading,
     fontSize: FontSize['3xl'],
@@ -321,6 +329,7 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     marginTop: 2,
   },
+  rowActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   divider: {
     height: 1,
     backgroundColor: Colors.line,
@@ -347,6 +356,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.base,
     padding: Spacing.xl,
   },
+  sheetBody: { paddingBottom: Spacing['2xl'] },
   formTitle: {
     fontFamily: Fonts.heading,
     fontSize: FontSize.xl,

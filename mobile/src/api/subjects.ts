@@ -19,7 +19,7 @@ export const getSubjects = async (semester?: number): Promise<SubjectsResponse> 
   return response.data;
 };
 
-export const createSubject = async (payload: { name: string; semester: number }): Promise<SubjectOption> => {
+export const createSubject = async (payload: { name: string; semester: number; departmentId: string }): Promise<SubjectOption> => {
   const response = await axiosClient.post<{ data: SubjectOption }>('/subjects', payload);
   return response.data.data;
 };

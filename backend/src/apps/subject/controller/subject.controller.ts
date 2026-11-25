@@ -4,6 +4,7 @@ import { AppError } from "../../../../utils/AppError.js";
 import { HTTP_STATUS } from "../../../../utils/errorCodes.js";
 import { sendSuccess } from "../../../../utils/apiResponse.js";
 import { ROLES } from "../../../shared/constants/roles.js";
+import { Department } from "../../department/modal/department.modal.js";
 
 /** Returns subjects from the signed-in user's department. */
 export const getSubjects = async (req: Request, res: Response) => {
@@ -56,10 +57,12 @@ export const getSubjects = async (req: Request, res: Response) => {
 export const createSubject = async (req: Request, res: Response) => {
   const departmentId = req.user?.departmentId;
   if (!departmentId) throw new AppError("Department ID not found in request.", HTTP_STATUS.BAD_REQUEST);
-  const { name, semester } = req.body as { name: string; semester: number };
-  const existing = await (Subject as any).findOne({ departmentId, name, semester });
+  const { name, semester, departmentId: selectedDepartmentId } = req.body as { name: string; semester: number; departmentId: string };
+  const targetDepartment = await Department.exists({ _id: selectedDepartmentId, isDeleted: false });
+  if (!targetDepartment) throw new AppError("Choose an active department.", HTTP_STATUS.BAD_REQUEST);
+  const existing = await (Subject as any).findOne({ departmentId: selectedDepartmentId, name, semester });
   if (existing) throw new AppError("This subject already exists for the selected semester.", HTTP_STATUS.CONFLICT);
-  const subject = await (Subject as any).create({ departmentId, name, semester });
+  const subject = await (Subject as any).create({ departmentId: selectedDepartmentId, name, semester });
   sendSuccess(res, HTTP_STATUS.CREATED, "Subject created successfully", {
     id: subject._id.toString(), name: subject.name, semester: subject.semester,
   });

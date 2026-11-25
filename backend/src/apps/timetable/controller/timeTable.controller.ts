@@ -34,6 +34,7 @@ export const getClassTimetable = async (req: Request, res: Response) => {
       data: timetable,
     });
   } catch (error) {
+    console.error("[timetable] getClassTimetable failed:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch timetable.",
@@ -59,7 +60,7 @@ export const createTimetable = async (req: Request, res: Response) => {
   try {
     const timetable = await timetableService.createTimetable({
       ...req.body,
-      department: req.user?.departmentId,
+      department: req.body.department,
     });
 
     return res.status(201).json({
@@ -79,12 +80,10 @@ export const createTimetable = async (req: Request, res: Response) => {
 export const updateTimetable = async (req: Request, res: Response) => {
   try {
     const { id } = req.params as TimetableIdParams;
-    const departmentId = req.user?.departmentId;
     if (!id) throw new AppError("Timetable ID is required.", 400);
 
     const timetable = await timetableService.updateTimetable(
       id,
-      departmentId as string,
       req.body,
     );
 
@@ -109,10 +108,9 @@ export const updateTimetable = async (req: Request, res: Response) => {
 export const deleteTimetable = async (req: Request, res: Response) => {
   try {
     const { id } = req.params as TimetableIdParams;
-    const departmentId = req.user?.departmentId;
     if (!id) throw new AppError("Timetable ID is required.", 400);
 
-    await timetableService.deleteTimetable(id, departmentId as string);
+    await timetableService.deleteTimetable(id);
 
     return res.status(200).json({
       success: true,

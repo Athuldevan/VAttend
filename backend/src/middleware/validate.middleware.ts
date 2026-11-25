@@ -33,7 +33,20 @@ export const validate =
       }
 
       const parsed = schema.parse(dataToValidate);
-      (req as any)[selectedTarget] = parsed;
+
+      if (selectedTarget === "query") {
+        // Express 5 exposes `req.query` as a getter-only property, so a plain
+        // assignment throws a TypeError. Redefine it instead.
+        Object.defineProperty(req, "query", {
+          value: parsed,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      } else {
+        (req as any)[selectedTarget] = parsed;
+      }
+
       next();
     } catch (error) {
       if (error instanceof ZodError) {

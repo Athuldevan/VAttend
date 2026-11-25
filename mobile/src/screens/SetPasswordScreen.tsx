@@ -24,6 +24,13 @@ export default function SetPasswordScreen({ onBack }: { onBack: () => void }) {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const inputRefs = useRef<Array<any>>([]);
+  const scrollRef = useRef<any>(null);
+
+  const keepPasswordFieldVisible = () => {
+    // The final field and action sit low in the form; give Android/iOS enough
+    // time to resize for the keyboard before moving this area into view.
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 180);
+  };
 
   const handleDigitChange = (val: string, index: number) => {
     const clean = val.replace(/[^0-9]/g, '');
@@ -112,12 +119,15 @@ export default function SetPasswordScreen({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.root}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
       >
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity
@@ -191,6 +201,7 @@ export default function SetPasswordScreen({ onBack }: { onBack: () => void }) {
                 setPasswordValue(t);
                 if (errorMessage) setErrorMessage('');
               }}
+              onFocus={keepPasswordFieldVisible}
               hint="Hint: Include upper, lower case and numbers"
             />
 
@@ -226,6 +237,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing['2xl'],
+    paddingBottom: Spacing['2xl'] * 3,
     justifyContent: 'center',
   },
   backButton: {
