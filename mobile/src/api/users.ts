@@ -17,7 +17,9 @@ export interface StudentItem {
   name: string;
   email: string;
   rollNumber: number;
-  classId?: string;
+  departmentId?: string;
+  year?: number;
+  academicYear?: string;
   isActive: boolean;
 }
 
@@ -48,9 +50,9 @@ export const updateTeacher = async (id: string, payload: Partial<Pick<TeacherOpt
 export const deleteTeacher = async (id: string) =>
   (await axiosClient.delete<{ data: TeacherOption }>(`/users/teachers/${id}`)).data.data;
 
-export const getStudents = async (classId?: string): Promise<{ data: StudentItem[] }> => {
+export const getStudents = async (params?: { departmentId?: string; year?: number; academicYear?: string }): Promise<{ data: StudentItem[] }> => {
   const response = await axiosClient.get<{ data: StudentItem[] }>("/users/students", {
-    params: classId ? { classId } : {},
+    params: params || {},
   });
   return response.data;
 };
@@ -58,13 +60,23 @@ export const getStudents = async (classId?: string): Promise<{ data: StudentItem
 export const createStudent = async (payload: {
   name: string;
   rollNumber: number;
-  classId: string;
+  departmentId: string;
+  year: number;
+  academicYear: string;
 }): Promise<StudentItem> => {
   const response = await axiosClient.post<{ data: StudentItem }>("/users/students", payload);
   return response.data.data;
 };
 
-export const updateStudent = async (id: string, payload: Partial<Pick<StudentItem, 'name' | 'email' | 'rollNumber' | 'classId' | 'isActive'>>) => {
+/** Mirrors the fields accepted by PATCH /users/students/:id. */
+export type UpdateStudentPayload = Partial<
+  Pick<
+    StudentItem,
+    'name' | 'email' | 'rollNumber' | 'departmentId' | 'year' | 'academicYear' | 'isActive'
+  >
+>;
+
+export const updateStudent = async (id: string, payload: UpdateStudentPayload) => {
   const response = await axiosClient.patch<{ data: StudentItem }>(`/users/students/${id}`, payload);
   return response.data.data;
 };

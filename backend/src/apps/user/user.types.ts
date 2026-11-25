@@ -11,6 +11,8 @@ export interface IUser {
   isActive: boolean;
   rollNumber? : number;
   class? : Types.ObjectId;
+  year?: number;
+  academicYear?: string;
   refreshTokenHash?: string | undefined;
   passwordSetupCodeHash?: string | undefined;
   passwordSetupExpiresAt?: Date | undefined;

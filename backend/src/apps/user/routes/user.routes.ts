@@ -40,7 +40,9 @@ router.post(
   validate(z.object({
     name: z.string().trim().min(2),
     rollNumber: z.coerce.number().int().positive(),
-    classId: z.string().regex(/^[0-9a-fA-F]{24}$/, "classId must be a valid MongoDB ObjectId"),
+    departmentId: z.string().regex(/^[0-9a-fA-F]{24}$/, "departmentId must be a valid MongoDB ObjectId"),
+    year: z.coerce.number().int().positive(),
+    academicYear: z.string().trim().min(4),
   })),
   createStudent,
 );
@@ -53,7 +55,9 @@ router.patch(
   validate(z.object({
     name: z.string().trim().min(2).optional(), email: z.string().trim().email().toLowerCase().optional(),
     rollNumber: z.coerce.number().int().positive().optional(),
-    classId: z.string().regex(/^[0-9a-fA-F]{24}$/, "classId must be a valid MongoDB ObjectId").optional(),
+    departmentId: z.string().regex(/^[0-9a-fA-F]{24}$/, "departmentId must be a valid MongoDB ObjectId").optional(),
+    year: z.coerce.number().int().positive().optional(),
+    academicYear: z.string().trim().min(4).optional(),
     isActive: z.boolean().optional(),
   }).refine((value) => Object.keys(value).length > 0, "At least one field is required")), updateStudent,
 );

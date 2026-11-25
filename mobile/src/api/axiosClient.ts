@@ -36,6 +36,10 @@ export async function storeToken(token: string): Promise<void> {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
 }
 
+export async function storeRefreshToken(token: string): Promise<void> {
+  await SecureStore.setItemAsync(REFRESH_KEY, token);
+}
+
 export async function clearTokens(): Promise<void> {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
   await SecureStore.deleteItemAsync(REFRESH_KEY);
@@ -122,7 +126,7 @@ axiosClient.interceptors.response.use(
       const response = await axios.post<{
         success: boolean;
         message: string;
-        data: { accessToken: string };
+        data: { accessToken: string; refreshToken?: string };
       }>(
         `${BASE_URL}/auth/refresh`,
         { refreshToken },
@@ -134,6 +138,12 @@ axiosClient.interceptors.response.use(
         throw new Error("Refresh response missing access token");
 
       await storeToken(newAccessToken);
+      // Refresh tokens are rotated server-side: persist the new one or the
+      // next refresh will be rejected as a reused token.
+      const rotatedRefreshToken = response.data?.data?.refreshToken;
+      if (rotatedRefreshToken) {
+        await storeRefreshToken(rotatedRefreshToken);
+      }
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
       processQueue(null, newAccessToken);
 

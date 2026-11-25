@@ -4,6 +4,7 @@ import Attendance, {
 } from "../model/attendance.model.js";
 import TimeTable from "../../timetable/model/timeTableSchema.js";
 import User from "../../user/user.model.js";
+import { Class } from "../../class/model/class.model.js";
 import { AppError } from "../../../../utils/AppError.js";
 import { HTTP_STATUS } from "../../../../utils/errorCodes.js";
 import { ROLES, type Role } from "../../../shared/constants/roles.js";
@@ -55,9 +56,12 @@ export const markAttendanceService = async (
     );
   }
 
+  const classRecord = await Class.findById(slot.class).select("departmentId year academicYear").lean();
+  if (!classRecord) throw new AppError("Class for this timetable slot was not found.", HTTP_STATUS.NOT_FOUND);
   const enrolledStudents = await User.find({
-    class: slot.class,
-    departmentId: slot.department,
+    departmentId: classRecord.departmentId,
+    year: classRecord.year,
+    academicYear: classRecord.academicYear,
     role: ROLES.STUDENT,
     isActive: true,
   }).select("_id").lean();
@@ -535,8 +539,12 @@ export const getSlotAttendanceService = async (
 
   // If no records marked yet, also fetch enrolled students so frontend can display mark view
   const classId = (slot.class as any)?._id || slot.class;
+  const classRecord = await Class.findById(classId).select("departmentId year academicYear").lean();
+  if (!classRecord) throw new AppError("Class for this timetable slot was not found.", HTTP_STATUS.NOT_FOUND);
   const enrolledStudents = await User.find({
-    class: classId,
+    departmentId: classRecord.departmentId,
+    year: classRecord.year,
+    academicYear: classRecord.academicYear,
     role: ROLES.STUDENT,
     isActive: true,
   })

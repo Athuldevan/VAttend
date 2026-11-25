@@ -161,15 +161,12 @@ export const getClassTimetable = async (
 ) => {
   const query: Record<string, any> = {
     class: new Types.ObjectId(classId),
+    isDeleted: false,
   };
 
   // If semester is NOT provided,
   // return only the current/non-deleted timetable.
-  if (semester === undefined) {
-    query.isDeleted = false;
-  } else {
-    // If semester is provided,
-    // allow archived timetable to be viewed.
+  if (semester !== undefined) {
     query.semester = semester;
   }
 

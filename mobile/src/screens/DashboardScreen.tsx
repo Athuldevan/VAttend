@@ -89,7 +89,13 @@ export default function DashboardScreen() {
               });
             }
 
-            const studentRes = await getStudents(cls.id);
+            // Students are allocated to a department cohort, not to a class id,
+            // so the class roster is matched on department + year + batch.
+            const studentRes = await getStudents({
+              departmentId: cls.departmentId,
+              year: cls.year,
+              academicYear: cls.academicYear,
+            });
             const studentSummaries = await Promise.all(
               (studentRes.data || []).map((student) => getStudentSummary(student.id))
             );

@@ -25,6 +25,8 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, HTTP_STATUS.CREATED, "Registration successful", {
     user,
     accessToken: tokens.accessToken,
+    // Native clients have no cookie jar; they store this in secure storage.
+    refreshToken: tokens.refreshToken,
   });
 });
 
@@ -37,6 +39,7 @@ export const registerWithDepartment = asyncHandler(async (req: Request, res: Res
   sendSuccess(res, HTTP_STATUS.CREATED, "Registration successful", {
     user,
     accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
   });
 });
 
@@ -57,12 +60,20 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, HTTP_STATUS.OK, "Login successful", {
     user,
     accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
   });
 });
 
 //refresh
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
-  const refreshToken = getRefreshTokenFromCookie(req);
+  // Browsers send the cookie; native apps send it in the body.
+  const bodyToken = (req.body as { refreshToken?: unknown } | undefined)
+    ?.refreshToken;
+
+  const refreshToken =
+    typeof bodyToken === "string" && bodyToken.length > 0
+      ? bodyToken
+      : getRefreshTokenFromCookie(req);
 
   if (!refreshToken) {
     throw new AppError("Refresh token is required", HTTP_STATUS.UNAUTHORIZED);
@@ -74,6 +85,8 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
 
   sendSuccess(res, HTTP_STATUS.OK, "Tokens refreshed successfully", {
     accessToken: tokens.accessToken,
+    // Refresh tokens are rotated: the client must replace its stored copy.
+    refreshToken: tokens.refreshToken,
   });
 });
 

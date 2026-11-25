@@ -25,8 +25,9 @@ const swaggerSpec = {
   },
   servers: [
     {
-      url: `http://localhost:${env.PORT}`,
-      description: "Development server",
+      url: env.PUBLIC_API_URL || `http://localhost:${env.PORT}`,
+      description:
+        env.NODE_ENV === "production" ? "Production server" : "Development server",
     },
   ],
   paths: {} as Record<string, unknown>,
@@ -37,9 +38,17 @@ const swaggerSpec = {
   tags: [] as Array<{ name: string }>,
 };
 
-const docFiles = readdirSync(__dirname).filter(
-  (file) => file.endsWith(".yaml") || file.endsWith(".yml"),
-);
+// The YAML files are read from disk at import time. On a serverless platform
+// they are only present when the deployment bundles them (see `includeFiles` in
+// vercel.json), so a failure here must never take the whole API down with it.
+let docFiles: string[] = [];
+try {
+  docFiles = readdirSync(__dirname).filter(
+    (file) => file.endsWith(".yaml") || file.endsWith(".yml"),
+  );
+} catch (error) {
+  console.warn("[docs] Could not read API doc directory, serving empty spec:", error);
+}
 
 for (const file of docFiles) {
   const content = readFileSync(resolve(__dirname, file), "utf8");

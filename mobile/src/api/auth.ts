@@ -1,4 +1,4 @@
-import { axiosClient, storeToken, clearTokens } from './axiosClient';
+import { axiosClient, storeToken, storeRefreshToken, clearTokens } from './axiosClient';
 import * as SecureStore from 'expo-secure-store';
 
 export interface LoginPayload {
@@ -39,6 +39,8 @@ export interface LoginResponse {
   message: string;
   data: {
     accessToken: string;
+    /** Native clients persist this; browsers receive it as an httpOnly cookie. */
+    refreshToken?: string;
     user: User;
   };
 }
@@ -48,16 +50,20 @@ export interface RefreshResponse {
   message: string;
   data: {
     accessToken: string;
+    refreshToken?: string;
   };
 }
 
 export const login = async (payload: LoginPayload): Promise<LoginResponse> => {
   const response = await axiosClient.post<LoginResponse>('/auth/login', payload);
-  const { accessToken, user } = response.data.data;
+  const { accessToken, refreshToken, user } = response.data.data;
 
   // Store tokens in secure storage
   if (accessToken) {
     await storeToken(accessToken);
+  }
+  if (refreshToken) {
+    await storeRefreshToken(refreshToken);
   }
   // Store user data
   await SecureStore.setItemAsync('ams_user', JSON.stringify(user));
@@ -67,9 +73,10 @@ export const login = async (payload: LoginPayload): Promise<LoginResponse> => {
 
 export const register = async (payload: RegisterPayload): Promise<LoginResponse> => {
   const response = await axiosClient.post<LoginResponse>('/auth/register', payload);
-  const { accessToken, user } = response.data.data;
+  const { accessToken, refreshToken, user } = response.data.data;
 
   if (accessToken) await storeToken(accessToken);
+  if (refreshToken) await storeRefreshToken(refreshToken);
   await SecureStore.setItemAsync('ams_user', JSON.stringify(user));
 
   return response.data;
@@ -79,8 +86,9 @@ export const registerWithDepartment = async (
   payload: RegisterWithDepartmentPayload,
 ): Promise<LoginResponse> => {
   const response = await axiosClient.post<LoginResponse>('/auth/register-with-department', payload);
-  const { accessToken, user } = response.data.data;
+  const { accessToken, refreshToken, user } = response.data.data;
   if (accessToken) await storeToken(accessToken);
+  if (refreshToken) await storeRefreshToken(refreshToken);
   await SecureStore.setItemAsync('ams_user', JSON.stringify(user));
   return response.data;
 };

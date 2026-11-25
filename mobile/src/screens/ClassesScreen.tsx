@@ -360,8 +360,11 @@ export default function ClassesScreen() {
         onPress: async () => {
           try {
             await deleteTimetable(slot.id);
+            // Remove locally first so the row disappears immediately, then
+            // reload to keep the client in sync with the server.
+            setSlots((current) => current.filter((item) => item.id !== slot.id));
             if (selectedClassForTimetable) {
-              loadTimetableForClass(selectedClassForTimetable);
+              await loadTimetableForClass(selectedClassForTimetable);
             }
           } catch (err: any) {
             Alert.alert('Error', err?.response?.data?.message || 'Could not remove period');

@@ -34,9 +34,18 @@ const userSchema = new Schema<IUserDocument>(
     class: {
       type: Schema.Types.ObjectId,
       ref: "Class",
-    required: function (this: IUserDocument): boolean {
-      return this.role === ROLES.STUDENT;
+      index: true,
     },
+    year: {
+      type: Number,
+      min: 1,
+      required: function (this: IUserDocument): boolean { return this.role === ROLES.STUDENT; },
+      index: true,
+    },
+    academicYear: {
+      type: String,
+      trim: true,
+      required: function (this: IUserDocument): boolean { return this.role === ROLES.STUDENT; },
       index: true,
     },
     role: {
@@ -71,6 +80,7 @@ const userSchema = new Schema<IUserDocument>(
 
 // Compound index useful for department-scoped user queries
 userSchema.index({ departmentId: 1, role: 1 });
+userSchema.index({ departmentId: 1, year: 1, academicYear: 1, role: 1 });
 
 const User = mongoose.model<IUserDocument>("User", userSchema);
 

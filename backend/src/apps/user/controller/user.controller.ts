@@ -151,15 +151,17 @@ export const deleteTeacher = async (req: Request, res: Response) => {
 
 /** Lists active students, optionally for one selected class. */
 export const getStudents = async (req: Request, res: Response) => {
-  const classId = typeof req.query.classId === "string" ? req.query.classId : undefined;
-  const classRecord = classId ? await Class.findById(classId).select("departmentId") : null;
-  if (classId && !classRecord) throw new AppError("Class not found.", HTTP_STATUS.NOT_FOUND);
+  const departmentId = typeof req.query.departmentId === "string" ? req.query.departmentId : undefined;
+  const year = typeof req.query.year === "string" ? Number(req.query.year) : undefined;
+  const academicYear = typeof req.query.academicYear === "string" ? req.query.academicYear : undefined;
   const students = await User.find({
     role: ROLES.STUDENT,
     isActive: true,
-    ...(classId ? { class: classId, departmentId: classRecord!.departmentId } : {}),
+    ...(departmentId ? { departmentId } : {}),
+    ...(year ? { year } : {}),
+    ...(academicYear ? { academicYear } : {}),
   })
-    .select("name email rollNumber class isActive")
+    .select("name email rollNumber departmentId year academicYear isActive")
     .sort({ rollNumber: 1, name: 1 })
     .lean();
 
@@ -168,19 +170,21 @@ export const getStudents = async (req: Request, res: Response) => {
     name: student.name,
     email: student.email,
     rollNumber: student.rollNumber,
-    classId: student.class?.toString(),
+    departmentId: student.departmentId?.toString(),
+    year: student.year,
+    academicYear: student.academicYear,
     isActive: student.isActive,
   })));
 };
 
 /** Creates an active student account in the selected class's department. */
 export const createStudent = async (req: Request, res: Response) => {
-  const { name, rollNumber, classId } = req.body as {
-    name: string; rollNumber: number; classId: string;
+  const { name, rollNumber, departmentId, year, academicYear } = req.body as {
+    name: string; rollNumber: number; departmentId: string; year: number; academicYear: string;
   };
-  const classRecord = await Class.findById(classId);
-  if (!classRecord) {
-    throw new AppError("Choose an existing class.", HTTP_STATUS.NOT_FOUND);
+  const department = await Department.exists({ _id: departmentId, isDeleted: false });
+  if (!department) {
+    throw new AppError("Choose an active department.", HTTP_STATUS.NOT_FOUND);
   }
   const existing = await User.findOne({ rollNumber });
   if (existing) {
@@ -198,18 +202,19 @@ export const createStudent = async (req: Request, res: Response) => {
     password: await hashPassword(crypto.randomBytes(32).toString("hex")),
     role: ROLES.STUDENT,
     rollNumber,
-    class: classRecord._id,
-    departmentId: classRecord.departmentId,
+    departmentId,
+    year,
+    academicYear,
     isActive: true,
   });
 
   sendSuccess(res, HTTP_STATUS.CREATED, "Student added successfully", {
     id: student._id.toString(), name: student.name, email: student.email,
-    rollNumber: student.rollNumber, classId: student.class?.toString(), isActive: student.isActive,
+    rollNumber: student.rollNumber, departmentId: student.departmentId.toString(), year: student.year, academicYear: student.academicYear, isActive: student.isActive,
   });
 };
 
-const studentResponse = (student: any) => ({ id: student._id.toString(), name: student.name, email: student.email, rollNumber: student.rollNumber, classId: student.class?.toString(), isActive: student.isActive });
+const studentResponse = (student: any) => ({ id: student._id.toString(), name: student.name, email: student.email, rollNumber: student.rollNumber, departmentId: student.departmentId?.toString(), year: student.year, academicYear: student.academicYear, isActive: student.isActive });
 
 const findManagedStudent = async (id: string) => {
   const student = await User.findOne({ _id: id, role: ROLES.STUDENT });
@@ -223,12 +228,11 @@ export const getStudent = async (req: Request, res: Response) => {
 
 export const updateStudent = async (req: Request, res: Response) => {
   const student = await findManagedStudent(req.params.id as string);
-  const { name, email, rollNumber, classId, isActive } = req.body as { name?: string; email?: string; rollNumber?: number; classId?: string; isActive?: boolean };
-  if (classId) {
-    const classRecord = await Class.findById(classId);
-    if (!classRecord) throw new AppError("Choose an existing class.", HTTP_STATUS.NOT_FOUND);
-    student.class = classRecord._id;
-    student.departmentId = classRecord.departmentId;
+  const { name, email, rollNumber, departmentId, year, academicYear, isActive } = req.body as { name?: string; email?: string; rollNumber?: number; departmentId?: string; year?: number; academicYear?: string; isActive?: boolean };
+  if (departmentId) {
+    const department = await Department.exists({ _id: departmentId, isDeleted: false });
+    if (!department) throw new AppError("Choose an active department.", HTTP_STATUS.NOT_FOUND);
+    student.departmentId = departmentId as any;
   }
   if (email && email !== student.email) {
     if (await User.exists({ email: email.toLowerCase(), _id: { $ne: student._id } })) throw new AppError("A user with this email already exists.", HTTP_STATUS.CONFLICT);
@@ -239,6 +243,8 @@ export const updateStudent = async (req: Request, res: Response) => {
     student.rollNumber = rollNumber;
   }
   if (name !== undefined) student.name = name;
+  if (year !== undefined) student.year = year;
+  if (academicYear !== undefined) student.academicYear = academicYear;
   if (isActive !== undefined) student.isActive = isActive;
   await student.save();
   sendSuccess(res, HTTP_STATUS.OK, "Student updated successfully", studentResponse(student));
