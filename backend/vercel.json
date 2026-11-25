@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "echo 'No build step: api/index.ts is compiled by @vercel/node'",
   "functions": {
     "api/index.ts": {
       "memory": 1024,

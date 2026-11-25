@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 const getSaltRounds = (): number => {
   const rounds = process.env.BCRYPT_SALT_ROUNDS;
