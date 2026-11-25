@@ -8,7 +8,9 @@
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
     "target": "esnext",
-    "types": ["node"],
+    // No explicit "types": TypeScript auto-discovers node_modules/@types, which
+    // avoids a hard TS2688 lookup for "node" when @vercel/node type-checks
+    // api/index.ts in a context where the type library is not resolvable.
     // Other Outputs
     "sourceMap": true,
     "declaration": true,
