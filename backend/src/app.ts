@@ -1,3 +1,5 @@
+// Registers the `req.user` type augmentation. Must stay in the import graph.
+import "./shared/types/express.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
